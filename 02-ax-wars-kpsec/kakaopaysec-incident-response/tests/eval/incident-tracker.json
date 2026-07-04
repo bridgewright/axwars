@@ -1,0 +1,30 @@
+[
+  {
+    "query": "지금 뭐가 제일 급해? 보고 시한 알려줘",
+    "should_trigger": true
+  },
+  {
+    "query": "장애 대응 진행상황 체크리스트 보여줘",
+    "should_trigger": true
+  },
+  {
+    "query": "남은 보고 마감 정리해줘",
+    "should_trigger": true
+  },
+  {
+    "query": "리액트 컴포넌트 리팩터링 해줘",
+    "should_trigger": false
+  },
+  {
+    "query": "이 파이썬 버그 디버깅 해줘",
+    "should_trigger": false
+  },
+  {
+    "query": "주간 매출 대시보드 만들어줘",
+    "should_trigger": false
+  },
+  {
+    "query": "금감원 사고보고서 만들어줘",
+    "should_trigger": false
+  }
+]

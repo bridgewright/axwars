@@ -1,0 +1,53 @@
+{
+  "incident_id": "INC-20230112-01",
+  "title": "앱 접속·이체·주식 매매 지연 (앱 서비스 지연)",
+  "detection": {
+    "first_recognizer": "고객(민원인)",
+    "detection_channel": "고객 민원 인입",
+    "detected_at": "2023-01-12T09:07:00+09:00"
+  },
+  "timeline": {
+    "resolved_at": null,
+    "events": [],
+    "occurred_at": "2023-01-12T09:05:00+09:00"
+  },
+  "classification": {
+    "incident_category": "전산장애사고",
+    "failure_subtype": "미정(파악 중)",
+    "failure_detail": "앱 서비스 지연(원인 미공개). 하루 중 두 차례 발생 보도"
+  },
+  "impact": {
+    "single_branch_only": false,
+    "public_webserver_only": false,
+    "incident_amount_krw": null,
+    "affected_services": [
+      "앱 로그인·접속",
+      "입출금·이체",
+      "해외주식 매매",
+      "국내주식 조회"
+    ],
+    "affected_markets": [
+      "국내주식",
+      "해외주식"
+    ],
+    "disruption_minutes": 10,
+    "affected_users_count": null
+  },
+  "cause": {
+    "root_cause": "파악 중(언론 미공개)",
+    "external_factor": false,
+    "responsible_company": null,
+    "affected_other_firms": null
+  },
+  "security": {
+    "personal_data_affected": false
+  },
+  "handling": "",
+  "measures": "",
+  "victims": [],
+  "compensation": {},
+  "orders": [],
+  "reporting": {},
+  "system_name": "카카오페이증권 앱(MTS)",
+  "description": "2023-01-12 장 초반 앱 접속·이체·주식 매매가 지연됨(하루 중 두 차례). 매매 시점을 놓친 투자자 발생. [추정] 발생시각·지속시간(약 10분)은 보도 기반 추정, 영향 이용자수는 미상."
+}

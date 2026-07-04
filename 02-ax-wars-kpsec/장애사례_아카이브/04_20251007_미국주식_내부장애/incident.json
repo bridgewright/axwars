@@ -1,0 +1,50 @@
+{
+  "incident_id": "INC-20251007-01",
+  "title": "미국주식 주문·체결 지연 — 내부 시스템 장애",
+  "detection": {
+    "first_recognizer": "고객(민원인)",
+    "detection_channel": "고객 민원 인입",
+    "detected_at": "2025-10-07T22:35:00+09:00"
+  },
+  "timeline": {
+    "resolved_at": null,
+    "events": [],
+    "occurred_at": "2025-10-07T22:30:00+09:00"
+  },
+  "classification": {
+    "incident_category": "전산장애사고",
+    "failure_subtype": "시스템 장애",
+    "failure_detail": "내부 시스템 장애로 미국주식 주문 접수·체결 지연"
+  },
+  "impact": {
+    "single_branch_only": false,
+    "public_webserver_only": false,
+    "incident_amount_krw": null,
+    "affected_services": [
+      "미국주식 주문 접수",
+      "미국주식 체결"
+    ],
+    "affected_markets": [
+      "해외주식"
+    ],
+    "disruption_minutes": 30,
+    "affected_users_count": null
+  },
+  "cause": {
+    "root_cause": "내부 시스템 장애(세부 원인 확인 중)",
+    "external_factor": false,
+    "responsible_company": null,
+    "affected_other_firms": null
+  },
+  "security": {
+    "personal_data_affected": false
+  },
+  "handling": "",
+  "measures": "",
+  "victims": [],
+  "compensation": {},
+  "orders": [],
+  "reporting": {},
+  "system_name": "해외주식 주문체결 시스템(MTS-해외)",
+  "description": "2025-10-07 22:30경부터 약 30분간 미국주식 주문 접수·체결이 지연됨(내부 시스템 장애). 일부 고객 제때 매도 못해 손실. [추정] 지속 약 30분, 영향 이용자수·금액 미상."
+}

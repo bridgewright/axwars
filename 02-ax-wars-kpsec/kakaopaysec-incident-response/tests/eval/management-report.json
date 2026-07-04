@@ -1,0 +1,30 @@
+[
+  {
+    "query": "이 장애 이사회까지 보고해야 해?",
+    "should_trigger": true
+  },
+  {
+    "query": "경영진 속보 1보 작성해줘",
+    "should_trigger": true
+  },
+  {
+    "query": "CEO 보고용 장애 요약 만들어줘",
+    "should_trigger": true
+  },
+  {
+    "query": "리액트 컴포넌트 리팩터링 해줘",
+    "should_trigger": false
+  },
+  {
+    "query": "이 파이썬 버그 디버깅 해줘",
+    "should_trigger": false
+  },
+  {
+    "query": "주간 매출 대시보드 만들어줘",
+    "should_trigger": false
+  },
+  {
+    "query": "미체결 주문 보상 얼마 줘야 해?",
+    "should_trigger": false
+  }
+]

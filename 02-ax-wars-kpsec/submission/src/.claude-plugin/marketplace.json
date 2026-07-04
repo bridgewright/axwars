@@ -1,0 +1,17 @@
+{
+  "name": "kakaopaysec",
+  "metadata": {
+    "description": "카카오페이증권 전자금융사고 대응 플러그인 로컬 마켓플레이스"
+  },
+  "owner": {
+    "name": "kpsec problem-solving session"
+  },
+  "plugins": [
+    {
+      "name": "kakaopaysec-incident-response",
+      "description": "카카오페이증권 전자금융사고 대응 문서 자동 생성 — 진입점(incident-response) + 5개 대응 스킬(금감원 사고보고서·고객 장애공지·경영진/이사회 보고·개인정보 유출 통지/신고·대응 시한 대시보드). 총 6 skills",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "incident_id": "INC-20230703-01",
+  "title": "해외주식(미국) 주문·체결 지연 — 이벤트 트래픽 폭주",
+  "detection": {
+    "first_recognizer": "고객(민원인)",
+    "detection_channel": "고객 민원 인입",
+    "detected_at": "2023-07-03T22:35:00+09:00"
+  },
+  "timeline": {
+    "resolved_at": null,
+    "events": [],
+    "occurred_at": "2023-07-03T22:30:00+09:00"
+  },
+  "classification": {
+    "incident_category": "전산장애사고",
+    "failure_subtype": "시스템 장애",
+    "failure_detail": "고객 유치 이벤트로 단시간 이용자 집중 → 서버 용량 초과(자체 시스템, 외부 브로커 원인 아님)"
+  },
+  "impact": {
+    "single_branch_only": false,
+    "public_webserver_only": false,
+    "incident_amount_krw": null,
+    "affected_services": [
+      "해외주식 매수/매도 주문",
+      "해외주식 체결",
+      "앱 접속"
+    ],
+    "affected_markets": [
+      "해외주식"
+    ],
+    "disruption_minutes": 40,
+    "affected_users_count": null
+  },
+  "cause": {
+    "root_cause": "해외주식 이벤트 기간 단시간 이용자 집중으로 서버 용량 초과(트래픽 폭주). 당사 자체 시스템 문제",
+    "external_factor": false,
+    "responsible_company": null,
+    "affected_other_firms": null
+  },
+  "security": {
+    "personal_data_affected": false
+  },
+  "handling": "",
+  "measures": "",
+  "victims": [],
+  "compensation": {},
+  "orders": [],
+  "reporting": {},
+  "system_name": "해외주식 주문체결 시스템(MTS-해외)",
+  "description": "2023-07-03 22:30경부터 약 40분간 해외주식 주문·체결 접속이 지연됨. 급등 종목(테슬라 등) 매도 시점을 놓친 투자자 피해. 보상 접수 진행. [추정] 영향 이용자수·금액 미상."
+}

@@ -1,0 +1,49 @@
+{
+  "incident_id": "INC-20260304-01",
+  "title": "'미국주식 모으기' 주문 일부 미체결 — 트래픽·외부연계 복합",
+  "detection": {
+    "first_recognizer": "고객(민원인)",
+    "detection_channel": "고객 민원 인입",
+    "detected_at": "2026-03-04T01:25:00+09:00"
+  },
+  "timeline": {
+    "resolved_at": null,
+    "events": [],
+    "occurred_at": "2026-03-04T01:20:00+09:00"
+  },
+  "classification": {
+    "incident_category": "전산장애사고",
+    "failure_subtype": "외부요인으로 인한 장애",
+    "failure_detail": "이용자 급증(트래픽 집중)과 외부 연계 시스템이 복합적으로 작용해 '미국주식 모으기' 주문 일부 미체결"
+  },
+  "impact": {
+    "single_branch_only": false,
+    "public_webserver_only": false,
+    "incident_amount_krw": null,
+    "affected_services": [
+      "미국주식 모으기(정기·소수점) 주문 체결"
+    ],
+    "affected_markets": [
+      "해외주식"
+    ],
+    "disruption_minutes": 44,
+    "affected_users_count": null
+  },
+  "cause": {
+    "root_cause": "이용자 급증에 따른 트래픽 집중 + 외부 연계 시스템 영향(복합, 세부 확인 중)",
+    "external_factor": true,
+    "responsible_company": "외부 연계 시스템(미상)",
+    "affected_other_firms": null
+  },
+  "security": {
+    "personal_data_affected": false
+  },
+  "handling": "",
+  "measures": "",
+  "victims": [],
+  "compensation": {},
+  "orders": [],
+  "reporting": {},
+  "system_name": "해외주식 정기투자(미국주식 모으기) 시스템",
+  "description": "2026-03-04 01:20~02:04(약 44분) '미국주식 모으기' 주문 일부가 체결되지 않음. 회사 설명상 트래픽 집중과 외부 연계 시스템이 복합. [추정] 영향 이용자수·미체결 규모 미상."
+}

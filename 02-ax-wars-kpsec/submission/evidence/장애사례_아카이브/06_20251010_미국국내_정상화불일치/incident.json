@@ -1,0 +1,51 @@
+{
+  "incident_id": "INC-20251010-01",
+  "title": "미국주식 체결불가 + 국내주식 응답지연 — 내부 시스템 장애",
+  "detection": {
+    "first_recognizer": "고객(민원인)",
+    "detection_channel": "고객 민원 인입",
+    "detected_at": "2025-10-10T00:35:00+09:00"
+  },
+  "timeline": {
+    "resolved_at": null,
+    "events": [],
+    "occurred_at": "2025-10-10T00:33:00+09:00"
+  },
+  "classification": {
+    "incident_category": "전산장애사고",
+    "failure_subtype": "시스템 장애",
+    "failure_detail": "내부 시스템 장애로 미국주식 체결 불가(새벽) + 당일 오전 국내주식 응답지연"
+  },
+  "impact": {
+    "single_branch_only": false,
+    "public_webserver_only": false,
+    "incident_amount_krw": null,
+    "affected_services": [
+      "미국주식 주문 체결",
+      "국내주식 시스템 응답"
+    ],
+    "affected_markets": [
+      "해외주식",
+      "국내주식"
+    ],
+    "disruption_minutes": 40,
+    "affected_users_count": null
+  },
+  "cause": {
+    "root_cause": "내부 시스템 장애(세부 원인 확인 중). 정상화 공지 이후에도 일부 체결 안 되는 '정상화 시점 불일치' 지적",
+    "external_factor": false,
+    "responsible_company": null,
+    "affected_other_firms": null
+  },
+  "security": {
+    "personal_data_affected": false
+  },
+  "handling": "",
+  "measures": "",
+  "victims": [],
+  "compensation": {},
+  "orders": [],
+  "reporting": {},
+  "system_name": "주문체결 시스템(MTS-해외/국내)",
+  "description": "2025-10-10 새벽 0:33경부터 약 33~40분 미국주식 체결 불가, 이어 당일 오전 9시경 국내주식 응답지연 약 30분. 정상화 공지 후에도 미복구 지적. [추정] 지속시간·영향 이용자수 미상."
+}

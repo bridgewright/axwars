@@ -1,0 +1,50 @@
+{
+  "incident_id": "INC-20251008-01",
+  "title": "미국주식 체결 지연 — 외부 브로커(DriveWealth) 장애, 5개사 동시",
+  "detection": {
+    "first_recognizer": "금융회사",
+    "detection_channel": "APM 모니터링·외부 연계 오류 탐지",
+    "detected_at": "2025-10-08T22:32:00+09:00"
+  },
+  "timeline": {
+    "resolved_at": null,
+    "events": [],
+    "occurred_at": "2025-10-08T22:30:00+09:00"
+  },
+  "classification": {
+    "incident_category": "전산장애사고",
+    "failure_subtype": "외부요인으로 인한 장애",
+    "failure_detail": "미국 현지 중개사 DriveWealth 전산장애로 주문 라우팅·체결 지연"
+  },
+  "impact": {
+    "single_branch_only": false,
+    "public_webserver_only": false,
+    "incident_amount_krw": null,
+    "affected_services": [
+      "미국주식 주문 접수",
+      "미국주식 체결"
+    ],
+    "affected_markets": [
+      "해외주식"
+    ],
+    "disruption_minutes": 17,
+    "affected_users_count": null
+  },
+  "cause": {
+    "root_cause": "미국 현지 위탁 브로커 DriveWealth 전산장애로 주문 전달·체결 지연(당사 내부 시스템 정상)",
+    "external_factor": true,
+    "responsible_company": "DriveWealth(미국 현지 브로커)",
+    "affected_other_firms": "메리츠·토스·NH투자·대신 등 DriveWealth 연계 5개 증권사 동시 영향"
+  },
+  "security": {
+    "personal_data_affected": false
+  },
+  "handling": "",
+  "measures": "",
+  "victims": [],
+  "compensation": {},
+  "orders": [],
+  "reporting": {},
+  "system_name": "해외주식 주문체결 시스템(MTS-해외)",
+  "description": "2025-10-08 22:30~22:47(약 17분) 미국주식 주문·체결이 DriveWealth 장애로 지연됨. 대부분 23시경 정상화. 미 증시 최고가·거래량 급증 시점과 겹침. [추정] 지속 약 17분, 영향 이용자수·손실액 미상."
+}

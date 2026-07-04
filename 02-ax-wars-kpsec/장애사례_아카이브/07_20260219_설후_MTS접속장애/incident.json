@@ -1,0 +1,51 @@
+{
+  "incident_id": "INC-20260219-01",
+  "title": "MTS 접속장애·주문지연 — 국내 정규장 개장 직후",
+  "detection": {
+    "first_recognizer": "고객(민원인)",
+    "detection_channel": "고객 민원 인입",
+    "detected_at": "2026-02-19T09:03:00+09:00"
+  },
+  "timeline": {
+    "resolved_at": null,
+    "events": [],
+    "occurred_at": "2026-02-19T09:00:00+09:00"
+  },
+  "classification": {
+    "incident_category": "전산장애사고",
+    "failure_subtype": "미정(파악 중)",
+    "failure_detail": "설 연휴 후 첫 영업일 정규장 개장 직후 MTS 접속·주문·조회 지연(트래픽 집중 추정, 기술팀 확인 중)"
+  },
+  "impact": {
+    "single_branch_only": false,
+    "public_webserver_only": false,
+    "incident_amount_krw": null,
+    "affected_services": [
+      "MTS 접속",
+      "국내주식 주문",
+      "시세·관심·커뮤니티 조회"
+    ],
+    "affected_markets": [
+      "국내주식"
+    ],
+    "disruption_minutes": 29,
+    "affected_users_count": null
+  },
+  "cause": {
+    "root_cause": "파악 중(회사 '기술팀 확인 중'). 코스피 5600 첫 돌파 등 트래픽 집중 추정",
+    "external_factor": false,
+    "responsible_company": null,
+    "affected_other_firms": null
+  },
+  "security": {
+    "personal_data_affected": false
+  },
+  "handling": "",
+  "measures": "",
+  "victims": [],
+  "compensation": {},
+  "orders": [],
+  "reporting": {},
+  "system_name": "카카오페이증권 MTS(국내)",
+  "description": "2026-02-19 설 연휴 후 첫 영업일 정규장 개장 직후 약 29분간 MTS 접속·주문·조회가 지연됨. [추정] 지속 약 29분, 원인 미확정, 영향 이용자수 미상."
+}
