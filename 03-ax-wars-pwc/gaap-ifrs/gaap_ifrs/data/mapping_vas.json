@@ -1,0 +1,16 @@
+[
+  {"source":"Cash and cash equivalents","aliases":["Tiền và các khoản tương đương tiền","Tiền","Cash"],"ifrs_account":"현금및현금성자산","statement":"BS","section":"유동자산","standard":"K-IFRS 1007","note":"VAS 111/112 → IFRS. 표시 유지"},
+  {"source":"Short-term investments","aliases":["Đầu tư tài chính ngắn hạn"],"ifrs_account":"당기손익-공정가치측정금융자산","statement":"BS","section":"유동자산","standard":"K-IFRS 1109","note":"VAS는 공정가치 개념 제한 → FVPL 재측정 검토"},
+  {"source":"Trade receivables","aliases":["Phải thu khách hàng","Receivables"],"ifrs_account":"매출채권및기타유동채권","statement":"BS","section":"유동자산","standard":"K-IFRS 1109","note":"VAS는 ECL 미적용 → 손실충당금 조정 검토"},
+  {"source":"Inventories","aliases":["Hàng tồn kho"],"ifrs_account":"재고자산","statement":"BS","section":"유동자산","standard":"K-IFRS 1002","note":"저가법. VAS 평가충당금 재검토"},
+  {"source":"Prepaid expenses","aliases":["Chi phí trả trước","Chi phí trả trước ngắn hạn"],"ifrs_account":"기타유동자산","statement":"BS","section":"유동자산","standard":"K-IFRS 1001","note":"기타유동자산 통합"},
+  {"source":"Tangible fixed assets","aliases":["Tài sản cố định hữu hình","Fixed assets","TSCĐ hữu hình"],"ifrs_account":"유형자산","statement":"BS","section":"비유동자산","standard":"K-IFRS 1016","note":"VAS는 재평가모형 제한 → 원가모형 기준. 내용연수·잔존가치 재검토"},
+  {"source":"Intangible fixed assets","aliases":["Tài sản cố định vô hình","TSCĐ vô hình"],"ifrs_account":"무형자산","statement":"BS","section":"비유동자산","standard":"K-IFRS 1038","note":"무형자산. 개발비 자본화 요건 차이"},
+  {"source":"Trade payables","aliases":["Phải trả người bán","Payables"],"ifrs_account":"매입채무및기타유동부채","statement":"BS","section":"유동부채","standard":"K-IFRS 1001","note":"통합 표시"},
+  {"source":"Short-term borrowings","aliases":["Vay và nợ thuê tài chính ngắn hạn","Borrowings"],"ifrs_account":"차입금","statement":"BS","section":"부채","standard":"K-IFRS 1109","note":"상각후원가 측정"},
+  {"source":"Owner's contributed capital","aliases":["Vốn góp của chủ sở hữu","Vốn chủ sở hữu","Share capital"],"ifrs_account":"자본금","statement":"BS","section":"자본","standard":"K-IFRS 1001","note":"표시 유지"},
+  {"source":"Undistributed profit after tax","aliases":["Lợi nhuận sau thuế chưa phân phối","Retained earnings"],"ifrs_account":"이익잉여금","statement":"BS","section":"자본","standard":"K-IFRS 1001","note":"전환조정 반영"},
+  {"source":"Revenue","aliases":["Doanh thu bán hàng và cung cấp dịch vụ","Net revenue","Doanh thu"],"ifrs_account":"수익(매출)","statement":"PL","section":"수익","standard":"K-IFRS 1115","note":"수행의무 기준. VAS 인식시점 차이 검토"},
+  {"source":"Cost of goods sold","aliases":["Giá vốn hàng bán","COGS"],"ifrs_account":"매출원가","statement":"PL","section":"비용","standard":"K-IFRS 1001","note":"표시 유지"},
+  {"source":"Financial expenses","aliases":["Chi phí tài chính"],"ifrs_account":"금융원가","statement":"PL","section":"비용","standard":"K-IFRS 1109","note":"금융원가 구분표시"}
+]

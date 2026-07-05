@@ -1,0 +1,14 @@
+{
+  "aging_schedule": [
+    {"bucket": "정상", "receivable": 4000000, "loss_rate": 0.01},
+    {"bucket": "연체", "receivable": 1000000, "loss_rate": 0.10}
+  ],
+  "revaluation": {"assets": [{"name": "토지", "carrying_amount": 25000000, "fair_value": 33000000}]},
+  "dev_capitalization": {"ineligible_amount": 1200000},
+  "lease_schedule": [{"annual_payment": 5000000, "term_years": 4, "discount_rate": 0.05}],
+  "defined_benefit": {"pbo": 12000000, "plan_assets": 3000000},
+  "financial_instruments": {"instruments": [
+    {"name": "단기매매증권", "carrying_amount": 2000000, "fair_value": 2300000, "category": "FVPL"},
+    {"name": "매도가능증권", "carrying_amount": 3000000, "fair_value": 3400000, "category": "FVOCI"}
+  ]}
+}

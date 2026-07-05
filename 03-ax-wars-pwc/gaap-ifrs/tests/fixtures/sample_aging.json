@@ -1,0 +1,5 @@
+{"aging_schedule": [
+  {"bucket": "정상", "receivable": 2500000, "loss_rate": 0.01},
+  {"bucket": "30일초과", "receivable": 400000, "loss_rate": 0.10},
+  {"bucket": "90일초과", "receivable": 100000, "loss_rate": 0.30}
+]}

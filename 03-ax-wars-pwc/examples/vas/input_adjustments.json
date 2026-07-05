@@ -1,0 +1,8 @@
+{
+  "aging_schedule": [
+    {"bucket": "current", "receivable": 4000000, "loss_rate": 0.01},
+    {"bucket": "past due", "receivable": 1000000, "loss_rate": 0.10}
+  ],
+  "revaluation": {"assets": [{"name": "Land", "carrying_amount": 25000000, "fair_value": 33000000}]},
+  "dev_capitalization": {"ineligible_amount": 1200000}
+}

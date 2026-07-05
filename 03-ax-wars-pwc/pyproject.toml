@@ -1,0 +1,9 @@
+[project]
+name = "gaap-standards-mcp"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["mcp>=1.2", "rank-bm25>=0.2.2", "numpy>=1.26",
+                "faiss-cpu>=1.8", "sentence-transformers>=3.0", "zstandard>=0.22"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,19 @@
+[
+  {"source":"货币资金","aliases":["Cash and cash equivalents","Monetary funds","Cash"],"ifrs_account":"현금및현금성자산","statement":"BS","section":"유동자산","standard":"K-IFRS 1007","note":"CAS→IFRS. 표시 유지"},
+  {"source":"交易性金融资产","aliases":["Trading financial assets","Financial assets at FVTPL"],"ifrs_account":"당기손익-공정가치측정금융자산","statement":"BS","section":"유동자산","standard":"K-IFRS 1109","note":"분류·측정(FVPL)"},
+  {"source":"应收账款","aliases":["Accounts receivable","Trade receivables"],"ifrs_account":"매출채권및기타유동채권","statement":"BS","section":"유동자산","standard":"K-IFRS 1109","note":"CAS 손상모형(ECL 유사하나 세부차이) → 재검토"},
+  {"source":"存货","aliases":["Inventories","Inventory"],"ifrs_account":"재고자산","statement":"BS","section":"유동자산","standard":"K-IFRS 1002","note":"저가법. CAS도 유사하나 원가흐름 가정 확인"},
+  {"source":"固定资产","aliases":["Fixed assets","Property plant and equipment","PP&E"],"ifrs_account":"유형자산","statement":"BS","section":"비유동자산","standard":"K-IFRS 1016","note":"CAS는 원가모형 원칙(재평가 제한) → 측정모형 차이"},
+  {"source":"无形资产","aliases":["Intangible assets"],"ifrs_account":"무형자산","statement":"BS","section":"비유동자산","standard":"K-IFRS 1038","note":"개발비 자본화 요건 차이"},
+  {"source":"长期股权投资","aliases":["Long-term equity investments"],"ifrs_account":"관계기업및공동기업투자","statement":"BS","section":"비유동자산","standard":"K-IFRS 1028","note":"지분법. CAS 범위 차이 확인"},
+  {"source":"应付账款","aliases":["Accounts payable","Trade payables"],"ifrs_account":"매입채무및기타유동부채","statement":"BS","section":"유동부채","standard":"K-IFRS 1001","note":"통합 표시"},
+  {"source":"预收款项","aliases":["Advances from customers","Contract liabilities"],"ifrs_account":"계약부채","statement":"BS","section":"유동부채","standard":"K-IFRS 1115","note":"계약부채로 재분류"},
+  {"source":"短期借款","aliases":["Short-term borrowings","Short-term loans"],"ifrs_account":"차입금","statement":"BS","section":"부채","standard":"K-IFRS 1109","note":"상각후원가"},
+  {"source":"长期借款","aliases":["Long-term borrowings","Long-term loans"],"ifrs_account":"차입금","statement":"BS","section":"부채","standard":"K-IFRS 1109","note":"상각후원가"},
+  {"source":"实收资本","aliases":["Paid-in capital","股本","Share capital"],"ifrs_account":"자본금","statement":"BS","section":"자본","standard":"K-IFRS 1001","note":"표시 유지"},
+  {"source":"资本公积","aliases":["Capital reserve","Capital surplus"],"ifrs_account":"자본잉여금","statement":"BS","section":"자본","standard":"K-IFRS 1001","note":"표시 유지"},
+  {"source":"未分配利润","aliases":["Undistributed profit","Retained earnings"],"ifrs_account":"이익잉여금","statement":"BS","section":"자본","standard":"K-IFRS 1001","note":"전환조정 반영"},
+  {"source":"营业收入","aliases":["Operating revenue","Revenue","Net revenue"],"ifrs_account":"수익(매출)","statement":"PL","section":"수익","standard":"K-IFRS 1115","note":"수행의무 기준. CAS 인식시점 차이 검토"},
+  {"source":"营业成本","aliases":["Operating cost","Cost of sales","COGS"],"ifrs_account":"매출원가","statement":"PL","section":"비용","standard":"K-IFRS 1001","note":"표시 유지"},
+  {"source":"财务费用","aliases":["Financial expenses","Finance costs"],"ifrs_account":"금융원가","statement":"PL","section":"비용","standard":"K-IFRS 1109","note":"금융원가 구분표시"}
+]

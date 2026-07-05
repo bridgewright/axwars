@@ -1,0 +1,7 @@
+{
+  "_comment": "IFRS 1101 전환조정 정답셋 형식 예시. 실데이터는 전환상장사 첫 K-IFRS 주석에서 추출.",
+  "ifrs_equity": 15305000,
+  "adjustment_lines": {
+    "기대신용손실(ECL) 조정": 55000
+  }
+}
