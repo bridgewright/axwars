@@ -1,0 +1,8 @@
+# secrets & real interview data (PII)
+.env
+_samples/
+
+# python
+__pycache__/
+*.pyc
+.venv/

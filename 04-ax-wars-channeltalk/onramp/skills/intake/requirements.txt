@@ -1,0 +1,16 @@
+# distillery (voice) — runtime deps. 설치: uv pip install -r requirements.txt
+# 버전 고정(reproducible installs; 검증된 조합).
+
+# ElevenLabs Agents Platform SDK (Conversation, AudioInterface, agents API)
+elevenlabs==2.54.0
+# 로컬 마이크/스피커 — 휠에 PortAudio 번들 → 'brew install portaudio' 불필요
+sounddevice==0.5.5
+# .env 에서 ELEVENLABS_API_KEY / AGENT_ID 로드
+python-dotenv==1.2.2
+# httpx SOCKS 지원 — Claude Code 샌드박스가 네트워크를 로컬 SOCKS 프록시로 강제할 때 필요
+# (라이브는 보통 sandbox-off 라 불필요하지만, in-sandbox 실행/도구점검 대비 포함)
+socksio==1.0.0
+
+# (선택) sounddevice 대신 ElevenLabs 기본 DefaultAudioInterface 를 쓰려면 system portaudio
+# 설치 후 아래 주석 해제하고 `--audio pyaudio` 로 실행:
+# pyaudio==0.2.14
