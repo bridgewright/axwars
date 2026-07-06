@@ -120,3 +120,40 @@ def test_detect_shadows_ignores_different_tiers():
     clean, n = detect_shadows([a, b])
     assert n == 0
     assert clean == [a, b]
+
+
+# --- K-GAAP-specific leak signatures -----------------------------------
+
+def _kgaap_rec(id, standard_no, para, text, tier="본문"):
+    return Record(id=id, gaap="K-GAAP", standard_no=standard_no, standard_title="테스트장",
+                  paragraph_no=para, heading="", text=text, text_norm=text, lang="ko",
+                  tier=tier, source_url="u", as_of="2026-07-06")
+
+
+def test_assert_no_leak_catches_kgaap_dissenting_opinion_divider_leaked_whole():
+    text = "일부 본문 다음에\n\n소수의견\n\n반대의견 내용이 이어진다."
+    recs = [_kgaap_rec("kgaap:9999:본문:0", "9999", "0", text)]
+    leaks = detect_leaks(recs)
+    assert len(leaks) == 1
+    assert leaks[0][1] == "kgaap_dissent_divider"
+
+
+def test_assert_no_leak_catches_kgaap_dropped_section_paragraph_no():
+    # Structural check mirroring K-IFRS's own BC/IE paragraph_no gate:
+    # 결<N>.<M>/사례<N>/소<N> paragraph_no values should be structurally
+    # impossible (split_sections_kgaap already routes that text to the
+    # dropped buckets before chunk_pages ever assigns paragraph numbers to
+    # it), checked anyway as defense in depth per the task spec.
+    for para in ("결9.1", "사례1", "소1"):
+        recs = [_kgaap_rec("kgaap:9999:적용지침:x", "9999", para, "새어 들어온 문단이다.",
+                           tier="적용지침")]
+        leaks = detect_leaks(recs)
+        assert len(leaks) == 1, f"expected a leak for paragraph_no={para!r}"
+        assert leaks[0][1] == "paragraph_no_kgaap_dropped"
+
+
+def test_assert_no_leak_does_not_misfire_on_kgaap_clean_records():
+    recs = [_kgaap_rec("kgaap:13:본문:13.1", "13", "13.1", "13.1 진짜 본문 문단이다."),
+            _kgaap_rec("kgaap:13:적용지침:실13.1", "13", "실13.1", "실13.1 진짜 실무지침 문단이다.",
+                      tier="적용지침")]
+    assert detect_leaks(recs) == []

@@ -11,7 +11,8 @@ from dataclasses import replace
 # Verified no import cycle: segment.py has no dependency on fidelity.py or
 # chunk.py, so this (like chunk.py's own top-level `from .segment import
 # ...`) is safe as a module-level import.
-from .segment import _BC_DIVIDER_RE, _IE_DIVIDER_RE, _BOARD_RESOLUTION_RE, _COPYRIGHT_TAIL_RE
+from .segment import (_BC_DIVIDER_RE, _IE_DIVIDER_RE, _BOARD_RESOLUTION_RE, _COPYRIGHT_TAIL_RE,
+                       _KGAAP_DISSENT_DIVIDER_RE)
 
 class FidelityError(Exception):
     pass
@@ -52,18 +53,28 @@ def dual_extract_diff(a, b):
     import difflib
     return 1.0 - difflib.SequenceMatcher(None, ca, cb).ratio()
 
-def retained_text_for_coverage(raw_text):
+def retained_text_for_coverage(raw_text, gaap="K-IFRS"):
     """Reconstruct the RETAINED region (본문+적용지침, after intentionally
     dropping frontmatter/결론도출근거/적용사례) exactly as chunk_pages sees
     it, so it can be used as the coverage baseline instead of the full raw
     extraction. Returns (retained_text, drop_info) where drop_info logs the
     dropped byte counts by category instead of silently discarding them.
 
+    `gaap="K-GAAP"` routes through strip_frontmatter_kgaap/split_sections_kgaap
+    instead (K-GAAP's document structure is unrelated to K-IFRS's -- see
+    tools/ingest/segment.py's K-GAAP module comment); every other gaap keeps
+    the original K-IFRS-shaped path unchanged.
+
     Import is local to avoid a module-load cycle (chunk.py imports this
     module for flag_oversized_chunks)."""
-    from .segment import strip_frontmatter, split_sections
-    kept, frontmatter_info = strip_frontmatter(raw_text)
-    sections = split_sections(kept)
+    if gaap == "K-GAAP":
+        from .segment import strip_frontmatter_kgaap, split_sections_kgaap
+        kept, frontmatter_info = strip_frontmatter_kgaap(raw_text)
+        sections = split_sections_kgaap(kept)
+    else:
+        from .segment import strip_frontmatter, split_sections
+        kept, frontmatter_info = strip_frontmatter(raw_text)
+        sections = split_sections(kept)
     retained = sections.get("본문", "") + sections.get("적용지침", "")
     drop_info = {
         "total_chars": len(raw_text),
@@ -75,13 +86,17 @@ def retained_text_for_coverage(raw_text):
     drop_info["dropped_chars"] = drop_info["total_chars"] - drop_info["retained_chars"]
     return retained, drop_info
 
-def assert_retained_coverage(raw_text, records, min_cov=0.995):
+def assert_retained_coverage(raw_text, records, min_cov=0.995, gaap="K-IFRS"):
     """Coverage check scoped to the RETAINED region (본문+적용지침) instead of
     the full raw extraction, so intentionally dropping frontmatter/BC/IE never
     counts against fidelity. Returns (coverage, drop_info); raises
     FidelityError if the retained region itself is not faithfully covered by
-    the records (a real extraction/chunking loss, not an intentional drop)."""
-    retained, drop_info = retained_text_for_coverage(raw_text)
+    the records (a real extraction/chunking loss, not an intentional drop).
+
+    `gaap` is forwarded to retained_text_for_coverage (see there); it is
+    keyword-only in practice (placed after min_cov) so every existing
+    2-positional-arg caller keeps working unchanged."""
+    retained, drop_info = retained_text_for_coverage(raw_text, gaap)
     cov = roundtrip_coverage(retained, records)
     if cov < min_cov:
         raise FidelityError(f"retained coverage {cov:.4f} < {min_cov} "
@@ -152,6 +167,20 @@ _TOC_HEADING_RE = re.compile(r"목\s{0,2}차")
 # in case that invariant is ever weakened.
 _LEAK_PARAGRAPH_NO_RE = re.compile(r"^(BC|IE)\d")
 
+# K-GAAP-specific dropped-section paragraph-number prefixes: "결<N>.<M>"
+# (결론도출근거), "사례<N>" (적용사례), "소<N>" (소수의견 -- see
+# tools/ingest/segment.py's K-GAAP module comment). Defense in depth, per the
+# task spec, mirroring _LEAK_PARAGRAPH_NO_RE's role for K-IFRS's own BC/IE
+# prefixes: chunk.py's own K-GAAP paragraph regexes (KGAAP_BODY_PARA_RE/
+# KGAAP_GUIDANCE_PARA_RE) only ever run against the 본문/적용지침 region
+# text, which split_sections_kgaap has already excluded 결론도출근거/
+# 적용사례/소수의견 text from -- this should be structurally impossible,
+# checked anyway in case that invariant is ever weakened. Safe against
+# K-IFRS/US-GAAP/CAS/VAS records too: none of those GAAPs' paragraph_no
+# values are ever prefixed with 결/사례/소 (Korean characters K-IFRS's own
+# numbering never uses).
+_KGAAP_LEAK_PARAGRAPH_NO_RE = re.compile(r"^(결\d|사례\d|소\d)")
+
 # name -> (matcher, where) -- "text" matchers run against record.text,
 # "paragraph_no" matchers run against record.paragraph_no.
 _LEAK_SIGNATURES = (
@@ -163,6 +192,9 @@ _LEAK_SIGNATURES = (
     ("bc_divider", _BC_DIVIDER_RE, "text"),
     ("ie_divider", _IE_DIVIDER_RE, "text"),
     ("paragraph_no_bc_ie", _LEAK_PARAGRAPH_NO_RE, "paragraph_no"),
+    # K-GAAP-specific (see above) -- inert no-ops for every other GAAP.
+    ("kgaap_dissent_divider", _KGAAP_DISSENT_DIVIDER_RE, "text"),
+    ("paragraph_no_kgaap_dropped", _KGAAP_LEAK_PARAGRAPH_NO_RE, "paragraph_no"),
 )
 
 

@@ -1,5 +1,6 @@
 from tools.ingest.segment import (strip_frontmatter, split_sections, SECTION_KEYS,
-                                   _strip_chapter_toc_previews, _TOC_SCAN_BOUND)
+                                   _strip_chapter_toc_previews, _TOC_SCAN_BOUND,
+                                   strip_frontmatter_kgaap, split_sections_kgaap)
 
 # Small synthetic fixture mirroring the REAL structure confirmed against the
 # downloaded kifrs_1002/1019/1116 PDFs/HWPs: cover + bilingual copyright +
@@ -346,3 +347,196 @@ def test_split_sections_strips_chapter_toc_preview_from_concept_framework_style_
     assert "실제 2장 첫 문단 내용이다" in sections["본문"]
     assert "제2장 제목" not in sections["본문"]
     assert "소제목" not in sections["본문"]
+
+
+# ---------------------------------------------------------------------------
+# K-GAAP (일반기업회계기준) segmentation -- a structurally unrelated document
+# template from K-IFRS's (see segment.py's K-GAAP module comment): organized
+# by 장/chapter with "<장번호>.<문단번호>" paragraph numbering, no IFRS
+# Foundation copyright block at all. Fixtures below mirror the REAL structure
+# confirmed against the downloaded kgaap_1/13/19/26 PDFs and the
+# 재무회계개념체계/시행일 및 경과규정 attachments.
+# ---------------------------------------------------------------------------
+
+_KGAAP_CHAPTER_DOC = """일반기업회계기준
+제9998장 테스트장
+한국회계기준원 회계기준위원회
+의결 2020. 1. 1.
+
+- 2 -
+제9998장 테스트장
+목적
+9998.1
+이 장의 목적은 테스트를 위한 것이다.
+9998.2
+둘째 문단 내용이다.
+
+일반기업회계기준 제9998장 '테스트장'의
+부록
+결론도출근거
+결9998.1
+결론도출근거 문단이다.
+
+실무지침
+실9998.1
+실무지침 첫 문단이다.
+실9998.2
+실무지침 둘째 문단이다.
+
+적용사례
+사례1
+적용사례 문단이다.
+"""
+
+
+def test_strip_frontmatter_kgaap_removes_tiny_title_block():
+    kept, info = strip_frontmatter_kgaap(_KGAAP_CHAPTER_DOC)
+    assert info["copyright_removed"] is True
+    assert "한국회계기준원 회계기준위원회" not in kept
+    assert "의결 2020" not in kept
+    assert "이 장의 목적은 테스트를 위한 것이다" in kept
+
+
+def test_split_sections_kgaap_keeps_bonmun_and_silmu_jichim_drops_bc_and_ie():
+    kept, _ = strip_frontmatter_kgaap(_KGAAP_CHAPTER_DOC)
+    sections = split_sections_kgaap(kept)
+    assert set(sections) == set(SECTION_KEYS)
+
+    body = sections["본문"]
+    assert "이 장의 목적은 테스트를 위한 것이다" in body
+    assert "둘째 문단 내용이다" in body
+    assert "실무지침 첫 문단이다" not in body
+    assert "결론도출근거 문단이다" not in body
+
+    guidance = sections["적용지침"]
+    assert "실무지침 첫 문단이다" in guidance
+    assert "실무지침 둘째 문단이다" in guidance
+    assert "이 장의 목적은" not in guidance
+
+    bc = sections["결론도출근거"]
+    assert "결론도출근거 문단이다" in bc
+
+    ie = sections["적용사례"]
+    assert "적용사례 문단이다" in ie
+
+
+# Confirmed real structure: 제26장 기본주당이익's PDF carries a
+# WHOLE-STANDARD-SET "목   차" (33-chapter listing, no paragraph-range
+# column) right after its own tiny title block, spanning a page break, and
+# ending with a preview mention of the enactment-log section title itself
+# ("...회계기준위원회의 의결") -- which, unstripped, tripped
+# fidelity._BOARD_RESOLUTION_RE when first discovered (see chunk.py's own
+# module history). Confirmed absent from most other 장 (e.g. 제1/13장) --
+# strip_frontmatter_kgaap must handle BOTH cases correctly.
+_KGAAP_MASTER_TOC_DOC = """일반기업회계기준
+제9996장 테스트장
+한국회계기준원 회계기준위원회
+의결 2020. 1. 1.
+
+목   차
+제1장 목적, 구성 및 적용
+제2장 재무제표의 작성과 표시Ⅰ
+
+- 2 -
+목   차
+제9996장 테스트장
+일반기업회계기준의 제정에 대한 회계기준위원회의 의결
+
+- 3 -
+제9996장 테스트장
+목적
+9996.1
+이 장의 목적은 진짜 내용을 담고 있다.
+"""
+
+
+def test_strip_frontmatter_kgaap_removes_whole_document_toc_when_present():
+    kept, info = strip_frontmatter_kgaap(_KGAAP_MASTER_TOC_DOC)
+    assert info["toc_removed"] is True
+    assert info["toc_anchor"] == "목차"
+    assert "목   차" not in kept
+    assert "제2장 재무제표의 작성과 표시" not in kept
+    assert "회계기준위원회의 의결" not in kept
+    assert "이 장의 목적은 진짜 내용을 담고 있다" in kept
+
+
+def test_strip_frontmatter_kgaap_master_toc_is_noop_when_absent():
+    # 제1/13장-style documents have no whole-document TOC at all -- the
+    # anchor must be a clean no-op, not reach into unrelated real content.
+    kept, info = strip_frontmatter_kgaap(_KGAAP_CHAPTER_DOC)
+    assert info["toc_anchor"] != "목차"
+
+
+# Confirmed real structure: 재무회계개념체계 has no "의결" title block and no
+# whole-document "목차" listing -- instead a short "정본" disclaimer + a
+# "서문" (preface) + a per-chapter-repeating "내용"-headed mini-TOC that
+# closes with a "문단번호" column of paragraph-range previews, and its own
+# 본문 paragraphs are bare "N." (digit + literal period + space), NOT the
+# "<장번호>.<문단번호>" style every numbered 장 uses.
+_KGAAP_FRAMEWORK_DOC = """재무회계개념체계
+2019. 9. 27.
+한국회계연구원
+회계기준위원회
+회계기준위원회에서 제정한 기업회계기준서의 정본은 웹사이트에 게재한 자료이다.
+
+서
+문
+이것은 서문 내용이며 인용 대상이 아니다.
+
+내
+용
+제1장 서론
+개념체계의 목적
+문단번호
+1-2
+
+- 1 -
+재무회계개념체계
+제1장서론
+개념체계의목적
+1. 첫째 문단 내용이다.
+2. 둘째 문단 내용이다.
+"""
+
+
+def test_strip_frontmatter_kgaap_removes_disclaimer_preface_and_toc_for_framework_doc():
+    kept, info = strip_frontmatter_kgaap(_KGAAP_FRAMEWORK_DOC)
+    assert info["toc_removed"] is True
+    assert info["toc_anchor"] == "문단번호"
+    assert "정본" not in kept
+    assert "서문 내용" not in kept
+    assert "문단번호" not in kept
+    assert "첫째 문단 내용이다" in kept
+    assert "둘째 문단 내용이다" in kept
+
+
+# Confirmed real structure: 일반기업회계기준 시행일 및 경과규정's own 부록
+# contains ONLY a 소수의견 (dissenting board-member opinion) subsection, no
+# 결론도출근거/실무지침/적용사례 at all -- paragraphs "소<N>". Dropped
+# alongside 결론도출근거/적용사례 (rationale/opinion commentary, not the
+# standard itself), routed into the same "결론도출근거" bucket as a labeling
+# convenience (both dropped identically by chunk_pages).
+_KGAAP_DISSENT_DOC = """일반기업회계기준
+시행일 및 경과규정
+한국회계기준원 회계기준위원회
+의결 2020. 1. 1.
+
+1
+첫째 문단 내용이다.
+
+일반기업회계기준 '시행일 및 경과규정'의
+부록
+소수의견
+소1
+반대의견 문단이다.
+"""
+
+
+def test_split_sections_kgaap_drops_dissenting_opinion_into_bc_bucket():
+    kept, _ = strip_frontmatter_kgaap(_KGAAP_DISSENT_DOC)
+    sections = split_sections_kgaap(kept)
+    assert "첫째 문단 내용이다" in sections["본문"]
+    assert "반대의견 문단이다" not in sections["본문"]
+    assert "반대의견 문단이다" in sections["결론도출근거"]
+    assert sections["적용지침"] == ""
+    assert sections["적용사례"] == ""

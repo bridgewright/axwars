@@ -443,3 +443,256 @@ def split_sections(text):
         end = boundaries[i + 1][0] if i + 1 < len(boundaries) else len(text)
         regions[name].append(text[start:end])
     return {k: "".join(v) for k, v in regions.items()}
+
+
+# ---------------------------------------------------------------------------
+# K-GAAP (일반기업회계기준) segmentation
+#
+# Structurally unrelated to the K-IFRS/KASB-translation template above: K-GAAP
+# is KASB's OWN native-Korean standard (no IFRS Foundation copyright block at
+# all -- confirmed absent from every sampled 장/chapter and from the
+# conceptual-framework document), organized by 장 (chapter) rather than by
+# 기준서 number, with 본문 paragraphs numbered "<장번호>.<문단번호>" (e.g.
+# "13.1", "13.45" for 제13장 '리스') instead of K-IFRS's un-prefixed
+# "22"/"5.5.1"/"40G".
+#
+# Confirmed (2026-07-06) against 9 downloaded real 장 (1/2/3/4/6/7/8/9/10/13/
+# 15/31/33 sampled directly, remainder spot-checked) plus the 3 non-chapter
+# items (재무회계개념체계, 일반기업회계기준 시행일 및 경과규정,
+# 보험업회계처리준칙):
+#
+# * TITLE BLOCK: every 장 opens with a 4-line block -- "일반기업회계기준",
+#   "제N장 <제목>", "한국회계기준원 회계기준위원회", "의결 YYYY. M. D." --
+#   then repeats the "제N장 <제목>" heading once more on the next (page-break-
+#   separated) page before real content starts. No bare-number TOC precedes
+#   this (unlike K-IFRS), so there is no paragraph-number collision risk left
+#   unstripped even if the anchor below is missed; cutting past the
+#   "의결 YYYY.M.D." line just removes the block for cleanliness. PDF space-
+#   rendering is inconsistent even WITHIN one document (e.g. 제31장's own
+#   title-block renders with no inter-word spaces at all -- "의결2020. 10.
+#   16." -- while its page-2 repeat heading has normal spacing) -- confirmed
+#   the same characteristic K-IFRS's PDFs have (see module docstring above)
+#   -- so `_loose()` is reused here too.
+# * BODY: 본문 paragraphs are numbered "<장번호>.<문단번호>" (e.g. "13.1"
+#   .."13.53") for the 33 numbered 장. The non-chapter items number
+#   differently: 재무회계개념체계 uses bare "N." (digit + literal period +
+#   space, e.g. "2. 본개념체계는..." -- confirmed NOT to match K-IFRS's own
+#   DIGIT_PARA_RE, which requires whitespace immediately after the digits
+#   with no intervening period), while 시행일 및 경과규정 uses bare "N"
+#   (no chapter prefix, since it is not itself a 장) and 보험업회계처리준칙
+#   (a pre-2011 "종전 기업회계기준" grandfathered into the 일반기업회계기준
+#   category until superseded, per its own in-document editorial note) uses
+#   legacy "N. <heading>" numbering with "(N-M)" parenthesized sub-items that
+#   are not separately numbered here. chunk.py's KGAAP_BODY_PARA_RE covers
+#   the first three shapes with one pattern; "(N-M)" sub-items are swept up
+#   as part of whichever top-level "N." paragraph precedes them (same
+#   coarser-grained-but-faithful tolerance K-IFRS's own chunker already has
+#   for prose subheadings sitting between two real paragraph markers).
+# * APPENDIX ("부록"): a 장 that has one opens with a self-referential
+#   "일반기업회계기준 제N장 '<제목>'의" line followed immediately by a bare
+#   "부록" heading line, which in turn is immediately followed by ONE of up
+#   to four sub-headings (order not fixed, not all always present -- e.g.
+#   제31장 has only 결론도출근거, no 실무지침/적용사례; 시행일 및 경과규정's
+#   own 부록 has only 소수의견):
+#     - 결론도출근거 (Basis for Conclusions) -- paragraphs "결<N>.<M>".
+#       SAME term K-IFRS uses for its own BC section, so the existing
+#       _BC_DIVIDER_RE is reused as-is (not redefined).
+#     - 실무지침 (Practical/Implementation Guidance) -- paragraphs
+#       "실<N>.<M>". This is K-GAAP's 적용지침-equivalent (문단 1.2 of 제1장
+#       itself describes 부록 as composed of "결론도출근거, 실무지침 및
+#       적용사례"; 실무지침 is the one of the three never accompanied by
+#       "이 기준의 일부를 구성하지 아니한다"-style self-disclaiming language
+#       anywhere near it in any sample checked, unlike 결론도출근거/
+#       적용사례/소수의견) -- kept, tagged tier="적용지침" for cross-GAAP
+#       consistency with schema.TIERS (same output tier name as K-IFRS's own
+#       부록 A/B/C application guidance).
+#     - 적용사례 (Illustrative Examples) -- case-based, numbered "사례1",
+#       "사례2" (no chapter prefix, no decimal). SAME term/divider shape
+#       K-IFRS uses for its own IE section, so the existing _IE_DIVIDER_RE is
+#       reused as-is. Dropped (non-authoritative, case illustrations only).
+#     - 소수의견 (board member dissenting opinion, confirmed present in the
+#       시행일 및 경과규정 부록) -- paragraphs "소<N>". Dropped alongside
+#       결론도출근거/적용사례 (rationale/opinion commentary, not the standard
+#       itself) via its own divider, routed into the same "결론도출근거"
+#       bucket as a labeling convenience only (both dropped identically by
+#       chunk_pages, mirroring how K-IFRS routes its own board-resolution
+#       voting log into the same bucket -- see split_sections's docstring
+#       above).
+# * 재무회계개념체계 (conceptual framework) has NO 부록/결론도출근거/
+#   실무지침/적용사례 of its own (confirmed: 0 occurrences of all four terms
+#   in the full downloaded text) -- entirely "본문"-tier once its frontmatter
+#   is stripped. Its own frontmatter is much larger than a 장's: a short
+#   "정본"(official-text) disclaimer + a "서문"(preface) + a multi-page,
+#   per-chapter-repeating mini-TOC (headed "내\n용", PDF-wrapped from "내용")
+#   that closes each block with a "문단번호" column of paragraph-range
+#   previews (e.g. "1-3", "4-5", ...) -- the same per-chapter-mini-TOC-repeat
+#   shape K-IFRS's OWN 개념체계 has (see _CHAPTER_TOC_RE above), just headed
+#   "내용" instead of "목차". Anchoring on the LAST "문단번호" occurrence
+#   (bounded -- see _KGAAP_FRAMEWORK_TOC_BOUND) and sweeping to the next
+#   blank line removes the disclaimer+preface+TOC in one shot, degrading to a
+#   no-op (nothing dropped) for every 장, none of which contain "문단번호" at
+#   all. 보험업회계처리준칙 has no "의결" title block at all (it predates
+#   that convention -- "제 정 1998. 12. 10" / "개정 YYYY.M.D." instead) and
+#   no "문단번호" TOC either, so BOTH anchors below legitimately no-op for
+#   it: its own short KASB editorial note + enactment/amendment history block
+#   is left as harmless residue attached ahead of its first real paragraph
+#   (same "cosmetic, not a fidelity violation" tolerance as everywhere else
+#   in this module), rather than risk a bespoke third anchor for one legacy
+#   document.
+# ---------------------------------------------------------------------------
+
+# Bounded the same way as K-IFRS's own _TOC_SCAN_BOUND (see above): every
+# legitimate "문단번호" occurrence confirmed in the real 재무회계개념체계
+# sits at <=6,200 chars from the start of the document (3 per-chapter-preview
+# blocks, the last starting around char 6,100); every 장 (which never
+# contains this marker at all) trivially has none within any bound. Kept far
+# above the legitimate range and far below "search the whole document" to
+# preserve the same never-mistake-real-content-for-frontmatter guarantee.
+_KGAAP_FRAMEWORK_TOC_BOUND = 15000
+
+# The tiny title-block date line ("의결 YYYY. M. D.") sits within the first
+# couple hundred characters in every sampled 장/non-chapter item that has one
+# (confirmed <=120 chars in every one of 제1/2/3/4/6/7/8/9/10/13/15/31/33장,
+# 시행일 및 경과규정). Bounded for the same reason as every other anchor in
+# this module: a miss here degrades to "title block left unstripped"
+# (harmless -- see module comment above), never an unbounded reach into real
+# body content.
+_KGAAP_ENACTMENT_SCAN_BOUND = 600
+
+# Some (not all -- confirmed absent from 제1-25장's own downloads, present in
+# 제26장) 장 PDFs additionally carry a WHOLE-STANDARD-SET "목차"/"목   차"
+# (Table of Contents listing all 33 장 by title, no paragraph-range column at
+# all -- unlike 재무회계개념체계's own "문단번호"-columned TOC, so a separate
+# anchor is needed) right after the tiny title block, occasionally spanning a
+# page break (confirmed: 제26장 repeats the "목   차" heading a second time
+# after a "- 2 -" page-break marker, continuing the same chapter list, and
+# ending with a trailing mention of "...회계기준위원회의 의결" as the TITLE of
+# the enactment-log section being previewed -- exactly the shape
+# _BOARD_RESOLUTION_RE exists to catch, confirmed empirically: this TOC leaked
+# into a 본문 record and tripped that leak signature before this anchor was
+# added). Confirmed real span in 제26장: first occurrence at char 55 (right
+# after its 53-char title block), last occurrence at char 383, sweeping to
+# the next blank line at char 606 -- the WHOLE 33-chapter+3-item list is
+# <=560 chars end to end. Bounded well above that (a 2nd, 3rd, ... page
+# repeat of the same list would still comfortably fit) and far below "search
+# the whole document", same guarantee as every other anchor here.
+_KGAAP_MASTER_TOC_BOUND = 3000
+
+_KGAAP_TOC_MARKER_RE = re.compile(_loose("문단번호"))
+_KGAAP_ENACTMENT_RE = re.compile(
+    _loose("의결") + r"[ \t\n]*\d{4}[.\s]+\d{1,2}[.\s]+\d{1,2}\.?"
+)
+_KGAAP_MASTER_TOC_RE = re.compile(_loose("목") + r"[ \t\n]*" + _loose("차"))
+
+# 실무지침/소수의견 headings: standalone lines, same shape as K-IFRS's own
+# _IE_DIVIDER_RE/_BC_DIVIDER_RE (confirmed: every real heading occurrence
+# sampled sits alone on its own line; the only OTHER occurrences found in
+# real text are inline cross-references glued mid-line to surrounding prose
+# with no preceding line break at all -- e.g. real 제13장 문단결13.11's
+# "...구체적인적용을위한기준으로서실무지침에서75%(리스기간/내용연수)를제시
+# 하였다", confirmed NOT matched by requiring the line to contain nothing
+# else -- exactly the same false-positive shape K-IFRS's own module comment
+# warns bare-keyword gates about).
+_KGAAP_GUIDANCE_DIVIDER_RE = re.compile(r"(?m)^실무지침\s*$")
+_KGAAP_DISSENT_DIVIDER_RE = re.compile(r"(?m)^소수의견\s*$")
+
+# NOTE on a fallback that was tried and deliberately reverted: 제9장's HWP
+# attachment (the one K-GAAP chapter needing an HWP fallback -- see
+# sources.py) is missing the literal "실무지침" heading text from its
+# extraction entirely (hwp5txt renders "<표>" in place of whatever the
+# heading sat inside -- a table/textbox it cannot extract text from), even
+# though its "실9.1", "실9.2", ... paragraphs extract as real text right
+# after it -- so _KGAAP_GUIDANCE_DIVIDER_RE never fires for that one
+# chapter, and its 실무지침 content is retained but stays classified as
+# 본문 tier rather than 적용지침 (a documented, minor known limitation, NOT
+# a fidelity violation -- nothing is dropped or leaked, see the ingestion
+# report). A same-shape, unconfirmed content-based fallback (switching
+# region the moment a bare "실<N>.<M>"-shaped line was seen ANYWHERE) was
+# tried to recover this, but confirmed EMPIRICALLY to be unsafe: it fired
+# on an incidental "실..."-shaped line inside 제18장's own (correctly
+# dropped) 결론도출근거 text, misclassifying part of that BC discussion as
+# kept 적용지침 -- caught by assert_no_leak's toc_heading signature, exactly
+# the "unbounded reach into unrelated real content" failure mode this
+# module's anchors are designed to avoid elsewhere (see e.g. _TOC_SCAN_BOUND
+# above). A single missing heading in one HWP file is a smaller, safer
+# thing to accept than a heuristic that can silently misclassify OTHER,
+# otherwise-correct chapters, so no such fallback is used.
+
+
+def strip_frontmatter_kgaap(text):
+    """K-GAAP counterpart to strip_frontmatter(): removes, in document order,
+    (1) the tiny "의결 YYYY.M.D."-anchored title block every 장/non-chapter
+    item opens with, (2) a whole-standard-set "목차" chapter listing some 장
+    PDFs additionally carry right after that title block (confirmed present
+    in 제26장, absent from 제1-25장), and (3) (only for documents that have
+    one -- confirmed so far only the 재무회계개념체계, which has neither of
+    the first two) the multi-block "문단번호"-anchored preface+TOC. Each step
+    is independently no-op-safe and only ever searches forward from where the
+    previous step left off (see module comment above), so this never
+    mistakes real body content for frontmatter even when any subset of the
+    three anchors is absent -- exactly like strip_frontmatter()'s own
+    degrade path for K-IFRS.
+
+    Returns (kept_text, dropped_info) -- same shape as strip_frontmatter()'s
+    return value, so callers do not need to special-case the GAAP."""
+    info = {"copyright_removed": False, "toc_removed": False, "toc_anchor": None,
+            "chars_dropped": 0, "dropped_text": ""}
+    cut = 0
+
+    enactment = _KGAAP_ENACTMENT_RE.search(text, cut, cut + _KGAAP_ENACTMENT_SCAN_BOUND)
+    if enactment:
+        cut = _advance_past_paragraph(text, enactment.end(), _BLANK_SWEEP_BOUND)
+        info["copyright_removed"] = True
+
+    master_toc_matches = list(_KGAAP_MASTER_TOC_RE.finditer(text, cut, cut + _KGAAP_MASTER_TOC_BOUND))
+    if master_toc_matches:
+        cut = _advance_past_paragraph(text, master_toc_matches[-1].end(), _BLANK_SWEEP_BOUND)
+        info["toc_removed"] = True
+        info["toc_anchor"] = "목차"
+
+    toc_matches = list(_KGAAP_TOC_MARKER_RE.finditer(text, cut, cut + _KGAAP_FRAMEWORK_TOC_BOUND))
+    if toc_matches:
+        cut = _advance_past_paragraph(text, toc_matches[-1].end(), _BLANK_SWEEP_BOUND)
+        info["toc_removed"] = True
+        info["toc_anchor"] = "문단번호"
+
+    info["chars_dropped"] = cut
+    info["dropped_text"] = text[:cut]
+    return text[cut:], info
+
+
+def split_sections_kgaap(text):
+    """K-GAAP counterpart to split_sections(): everything up to the first
+    부록 sub-heading is 본문; 실무지침 is the KEPT 적용지침-equivalent
+    (application guidance) region; 결론도출근거 and 적용사례 (SAME terms/
+    divider shapes K-IFRS itself uses -- _BC_DIVIDER_RE/_IE_DIVIDER_RE are
+    reused as-is, not redefined) and 소수의견 (dissenting board-member
+    opinion, K-GAAP-specific) are all dropped, the latter routed into the
+    "결론도출근거" bucket as a labeling convenience only -- see module
+    comment above. The bare "부록" line itself is deliberately NOT a
+    boundary: it is always immediately followed by one of the four
+    sub-headings above in every sample seen, so the few words between it and
+    that sub-heading (e.g. "일반기업회계기준 제13장 '리스'의") are harmless
+    residue left attached to the tail of 본문's last real paragraph, same
+    tolerance as K-IFRS's own split_sections has for comparable residue.
+
+    If no "실무지침" heading is found at all (confirmed real case: 제9장's
+    HWP attachment -- see module comment above), 본문 simply extends through
+    that content instead of misclassifying it -- a documented, minor
+    limitation, never a fidelity violation."""
+    marks = [(m.start(), "적용지침") for m in _KGAAP_GUIDANCE_DIVIDER_RE.finditer(text)]
+    marks += [(m.start(), "결론도출근거") for m in _BC_DIVIDER_RE.finditer(text)]
+    marks += [(m.start(), "적용사례") for m in _IE_DIVIDER_RE.finditer(text)]
+    marks += [(m.start(), "결론도출근거") for m in _KGAAP_DISSENT_DIVIDER_RE.finditer(text)]
+    marks.sort(key=lambda x: x[0])
+
+    boundaries = [(0, "본문")]
+    for pos, name in marks:
+        if boundaries[-1][1] != name:
+            boundaries.append((pos, name))
+
+    regions = {k: [] for k in SECTION_KEYS}
+    for i, (start, name) in enumerate(boundaries):
+        end = boundaries[i + 1][0] if i + 1 < len(boundaries) else len(text)
+        regions[name].append(text[start:end])
+    return {k: "".join(v) for k, v in regions.items()}

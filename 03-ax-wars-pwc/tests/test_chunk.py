@@ -1,5 +1,5 @@
 from tools.ingest.extract import Page
-from tools.ingest.chunk import chunk_pages, ChunkingError
+from tools.ingest.chunk import chunk_pages, ChunkingError, KGAAP_BODY_PARA_RE
 
 def test_chunk_splits_on_paragraph_numbers():
     text = "22 리스이용자는 사용권자산을 인식한다.\n23 리스부채는 현재가치로 측정한다."
@@ -159,3 +159,115 @@ def test_chunk_pages_suffixes_repeated_paragraph_numbers_within_one_tier():
 def test_chunking_error_is_importable():
     # the hard-gate exception type is part of chunk.py's public surface
     assert issubclass(ChunkingError, Exception)
+
+
+# ---------------------------------------------------------------------------
+# K-GAAP (일반기업회계기준) chunking -- routed through its own frontmatter/
+# section/paragraph-regex path (see segment.py's K-GAAP module comment and
+# chunk_pages' own docstring), NOT K-IFRS's. Mirrors the real structure
+# confirmed against the downloaded kgaap_1/13/19/26 PDFs: tiny "의결 YYYY"
+# title block, "<장번호>.<문단번호>" 본문 paragraphs, a self-referential
+# "부록" opening a container of up to four sub-headings (결론도출근거 kept
+# out, 실무지침 kept as 적용지침 tier, 적용사례 kept out).
+# ---------------------------------------------------------------------------
+
+_KGAAP_FULL_DOC = """일반기업회계기준
+제9994장 테스트장
+한국회계기준원 회계기준위원회
+의결 2020. 1. 1.
+
+- 2 -
+제9994장 테스트장
+목적
+9994.1
+첫째 문단 내용이다.
+9994.2
+둘째 문단 내용이다.
+
+일반기업회계기준 제9994장 '테스트장'의
+부록
+결론도출근거
+결9994.1
+결론도출근거 문단이다.
+
+실무지침
+실9994.1
+실무지침 첫 문단이다.
+
+적용사례
+사례1
+적용사례 문단이다.
+"""
+
+
+def _chunk_kgaap_full_doc():
+    return chunk_pages([Page(_KGAAP_FULL_DOC, 1, "p1")], "K-GAAP", "9994", "테스트장", "ko",
+                       "https://x", "2026-07-06")
+
+
+def test_chunk_pages_kgaap_drops_bc_and_ie_keeps_silmujichim_as_guidance_tier():
+    recs = _chunk_kgaap_full_doc()
+    texts = [r.text for r in recs]
+    assert not any("결론도출근거 문단이다" in t for t in texts)
+    assert not any("적용사례 문단이다" in t for t in texts)
+    assert not any("한국회계기준원" in t for t in texts)
+
+    by_id = {r.id: r for r in recs}
+    body1 = by_id["kgaap:9994:본문:9994.1"]
+    assert body1.tier == "본문"
+    assert "첫째 문단 내용이다" in body1.text
+
+    guidance = by_id["kgaap:9994:적용지침:실9994.1"]
+    assert guidance.tier == "적용지침"
+    assert "실무지침 첫 문단이다" in guidance.text
+
+    ids = [r.id for r in recs]
+    assert len(set(ids)) == len(ids)
+
+
+def test_chunk_pages_kgaap_splits_chapter_dot_paragraph_numbering():
+    recs = _chunk_kgaap_full_doc()
+    body_paras = [r.paragraph_no for r in recs if r.tier == "본문"]
+    # "0" is the unclaimed lead text ahead of the first real match -- the
+    # page-break marker + repeated chapter-title header left after the tiny
+    # title block is stripped (harmless residue, same convention as any
+    # other unnumbered lead text -- see split_sections_kgaap's docstring).
+    assert body_paras == ["0", "9994.1", "9994.2"]
+
+
+# Confirmed real structure: 적용보충기준 (Supplementary Application
+# Standard) paragraphs sit under a "부록A. 적용보충기준"-labeled heading in
+# some 장's PDFs (e.g. 제6장/제19장) but are 본문-tier per 제1장 문단 1.2's
+# own definition ("본문(적용보충기준 포함)"), numbered
+# "<장번호>.<LETTER><숫자>" with an optional Korea-only insert-paragraph
+# suffix "의<숫자>" (e.g. "6.A1", "6.A1의2"). Without this alternative,
+# chunk_pages swallowed this whole sub-section into the preceding real
+# paragraph as one wildly oversized chunk (confirmed against the real
+# 제6장/제19장 downloads before this pattern was added).
+def test_kgaap_body_para_re_matches_supplementary_standard_paragraphs():
+    text = "6.A1 첫 문단이다.\n6.A1의2 둘째 문단이다.\n6.A2 셋째 문단이다.\n"
+    matches = [m.group(1) for m in KGAAP_BODY_PARA_RE.finditer(text)]
+    assert matches == ["6.A1", "6.A1의2", "6.A2"]
+
+
+def test_chunk_pages_kgaap_tags_supplementary_standard_paragraphs_as_bonmun():
+    text = ("목적\n6.1\n첫 문단이다.\n\n"
+            "일반기업회계기준 제6장 '금융자산·금융부채'의\n부록A. 적용보충기준\n"
+            "6.A1\n적용보충기준 첫 문단이다.\n6.A1의2\n삽입된 문단이다.\n")
+    recs = chunk_pages([Page(text, 1, "p1")], "K-GAAP", "6", "금융자산·금융부채", "ko",
+                       "u", "2026-07-06")
+    by_para = {r.paragraph_no: r for r in recs}
+    assert by_para["6.A1"].tier == "본문"
+    assert "적용보충기준 첫 문단이다" in by_para["6.A1"].text
+    assert by_para["6.A1의2"].tier == "본문"
+    assert "삽입된 문단이다" in by_para["6.A1의2"].text
+
+
+def test_chunk_pages_kgaap_bare_integer_numbering_for_non_chapter_items():
+    # 재무회계개념체계/시행일 및 경과규정 style: bare "N"/"N." numbering, no
+    # chapter prefix (see segment.py's K-GAAP module comment).
+    text = "1\n첫째 문단이다.\n2\n둘째 문단이다.\n"
+    recs = chunk_pages([Page(text, 1, "p1")], "K-GAAP", "시행일-경과규정",
+                       "일반기업회계기준 시행일 및 경과규정", "ko", "u", "2026-07-06")
+    assert [r.paragraph_no for r in recs] == ["1", "2"]
+    assert all(r.tier == "본문" for r in recs)

@@ -167,7 +167,148 @@ SOURCES = {
              "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
         ],
     },
-    "K-GAAP": {"lang": "ko", "format": "pdf", "base_url": "https://www.kasb.or.kr", "standards": []},
+    "K-GAAP": {
+        "lang": "ko", "format": "pdf", "base_url": "https://www.kasb.or.kr",
+        # Unlike K-IFRS's own listing page (which states "시행중 회계기준은
+        # 2026년 1월 1일 현재 시행중인 회계..."), List3003.do prints no
+        # single canonical "현재 시행중" vintage sentence at all -- each 장
+        # instead carries its OWN "의결 YYYY.M.D." enactment/amendment date
+        # in its title block (ranging 2009-2023 across the 33 장 sampled).
+        # This GAAP-level default records the scrape date itself (2026-07-06)
+        # as the as_of used by ingest_gaap when a standard doesn't specify
+        # its own -- "this is what was live on kasb.or.kr as of this date" --
+        # rather than fabricating a single vintage claim the source page
+        # itself never makes.
+        "as_of": "2026-07-06",
+        # Complete enumeration of the KASB 일반기업회계기준 listing at
+        # https://www.kasb.or.kr/front/board/List3003.do -- scraped 2026-07-06
+        # by parsing every <tr> of the 기준명/다운로드 table (37 rows, 0
+        # unparsed, no pagination on the page). Reached from the site's own
+        # nav: sitemap.do's "일반기업회계기준" menu item resolves to
+        # fn_goMenu('/front/board/List3003.do') -- a SEPARATE board from
+        # K-IFRS's own ingAccountingList.do, with no early/current-tab split
+        # (single always-current list; no "현재 시행중" vintage sentence is
+        # printed on this page the way K-IFRS's own listing has one, unlike
+        # that registry's as_of this one is dated to the scrape itself).
+        #
+        # 33 rows carry a "제NN장" chapter number (1-33, contiguous, none
+        # superseded/missing unlike K-IFRS's gappy 1xxx range) + 4 rows with
+        # no chapter number: 재무회계개념체계 (conceptual framework,
+        # tagged "개념체계" mirroring the K-IFRS registry's own non-numbered-
+        # item convention), 일반기업회계기준 시행일 및 경과규정 (effective-
+        # date/transitional-provisions, tagged "시행일-경과규정"),
+        # 보험업회계처리준칙 (a pre-2011 "종전 기업회계기준" grandfathered
+        # into the 일반기업회계기준 category until superseded per its own
+        # in-document editorial note -- tagged by its own title, legacy
+        # "N. <heading>"/"(N-M)" numbering, no "의결 YYYY" title block), and
+        # 일반기업회계기준 재무제표 영문양식 (tagged "영문양식") -- the ONLY
+        # HWP-only row on the whole board (no PDF attachment at all; file
+        # confirmed via hwp5txt to be blank English-language financial-
+        # statement FORM exhibits with placeholder tables, no 문단-numbered
+        # regulatory text at all, so it is excluded at the ingestion step --
+        # see the ingestion report -- but kept here, per 정공법, as a
+        # truthfully-cataloged registry entry with format="hwp" and
+        # file_seq_pdf=None rather than silently omitted).
+        #
+        # PDF is preferred (file_seq_pdf) wherever it exists; HWP fileSeq is
+        # kept alongside for completeness, same convention as K-IFRS's own
+        # registry. fileNo/fileSeq->format mapping is NOT a fixed convention
+        # (confirmed: rows 27/28 "특수활동"/"중단사업" have PDF at fileSeq
+        # "1" and HWP at "2", the REVERSE of every other row) -- each row's
+        # tokens below were read from its own down_pdf/down_hwp class
+        # directly, never assumed from a global seq-number pattern (same
+        # caution the K-IFRS registry's own docstring documents).
+        "standards": [
+            # -- non-chapter: conceptual framework --
+            {"no": "개념체계", "title": "재무회계개념체계", "file_no": "4813",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            # -- 장 1-33, ascending --
+            {"no": "1", "title": "목적, 구성 및 적용", "file_no": "-49989942",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "2", "title": "재무제표의 작성과 표시Ⅰ", "file_no": "10512",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "3", "title": "재무제표의 작성과 표시Ⅱ", "file_no": "9222",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "4", "title": "연결재무제표", "file_no": "5339",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "5", "title": "회계정책, 회계추정의 변경 및 오류", "file_no": "-49949710",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "6", "title": "금융자산ㆍ금융부채", "file_no": "3831",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "7", "title": "재고자산", "file_no": "-49929594",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "8", "title": "지분법", "file_no": "10572",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            # PDF confirmed (2026-07-06) to be a raster SCAN with no text
+            # layer at all: 17 pages, every page 0-7 extractable chars
+            # (just a page-footer number) but 12-105 embedded raster image
+            # tiles -- a legacy digitization artifact on KASB's own server,
+            # not an extract.py/PyMuPDF issue (every other 장's PDF has a
+            # real text layer). The HWP attachment for this SAME 기준 has
+            # clean, complete native text (confirmed via hwp5txt: real
+            # "9.1"/"9.2"/... paragraphs, same numbering convention as every
+            # other 장). "format": "hwp" overrides the GAAP-level PDF
+            # default for this one entry only -- see download_path/
+            # ingest_gaap in run_ingest.py.
+            {"no": "9", "title": "조인트벤처 투자", "file_no": "1590",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "format": "hwp", "tier": "본문"},
+            {"no": "10", "title": "유형자산", "file_no": "2548",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "11", "title": "무형자산", "file_no": "2550",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "12", "title": "사업결합", "file_no": "3833",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "13", "title": "리스", "file_no": "3834",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "14", "title": "충당부채, 우발부채 및 우발자산", "file_no": "3835",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "15", "title": "자본", "file_no": "3852",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "16", "title": "수익", "file_no": "5340",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "17", "title": "정부보조금의 회계처리", "file_no": "9223",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "18", "title": "차입원가자본화", "file_no": "4816",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "19", "title": "주식기준보상", "file_no": "3839",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "20", "title": "자산손상", "file_no": "3840",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "21", "title": "종업원급여", "file_no": "3841",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "22", "title": "법인세회계", "file_no": "10513",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "23", "title": "환율변동효과", "file_no": "2552",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "24", "title": "보고기간후사건", "file_no": "-49758608",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "25", "title": "특수관계자 공시", "file_no": "6351",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "26", "title": "기본주당이익", "file_no": "3844",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "27", "title": "특수활동", "file_no": "-49728434",
+             "file_seq_pdf": "1", "file_seq_hwp": "2", "tier": "본문"},
+            {"no": "28", "title": "중단사업", "file_no": "-49718376",
+             "file_seq_pdf": "1", "file_seq_hwp": "2", "tier": "본문"},
+            {"no": "29", "title": "중간재무제표", "file_no": "6352",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "30", "title": "일반기업회계기준의 최초채택", "file_no": "5341",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "31", "title": "중소기업 회계처리 특례", "file_no": "6353",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "32", "title": "동일지배거래", "file_no": "10573",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "33", "title": "온실가스 배출권과 배출부채", "file_no": "-49537332",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            # -- non-chapter: administrative / legacy --
+            {"no": "시행일-경과규정", "title": "일반기업회계기준 시행일 및 경과규정", "file_no": "10571",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "보험업회계처리준칙", "title": "보험업회계처리준칙", "file_no": "4240",
+             "file_seq_pdf": "2", "file_seq_hwp": "1", "tier": "본문"},
+            {"no": "영문양식", "title": "일반기업회계기준 재무제표 영문양식", "file_no": "1271",
+             "file_seq_pdf": None, "file_seq_hwp": "1", "format": "hwp", "tier": "본문"},
+        ],
+    },
     "US-GAAP": {"lang": "en", "format": "html", "base_url": "https://asc.fasb.org", "standards": []},
     "CAS": {"lang": "zh", "format": "pdf", "base_url": "http://kjs.mof.gov.cn", "standards": []},
     "VAS": {"lang": "vi", "format": "pdf", "base_url": "", "standards": []},

@@ -1,7 +1,7 @@
 import re
 from gaap_standards_mcp.schema import Record
 from gaap_standards_mcp.normalize import normalize_text
-from .segment import strip_frontmatter, split_sections
+from .segment import strip_frontmatter, split_sections, strip_frontmatter_kgaap, split_sections_kgaap
 from .fidelity import flag_oversized_chunks
 
 # 본문: digit paragraph numbers -- "1", "22", "5.5.1", "40G" -- plus the
@@ -49,6 +49,46 @@ LETTER_PARA_RE = re.compile(r"(?m)^\s*((?!BC\d)(?!IE\d)[A-Z]{1,2}\d+[A-Z]{0,2}(?
 
 DEFAULT_PARA_RE = DIGIT_PARA_RE  # backward-compatible alias (original 본문-only regex)
 
+# K-GAAP 본문: "<장번호>.<문단번호>" (e.g. "13.1") for the 33 numbered 장, OR
+# bare "N"/"N." (e.g. 재무회계개념체계's "2. 본개념체계는...", 시행일 및
+# 경과규정's bare "1"/"2"/"3", 보험업회계처리준칙's legacy "1. 목적") for the
+# non-chapter items -- see tools/ingest/segment.py's K-GAAP module comment.
+# The trailing literal period is OPTIONAL (present for the bare-integer
+# styles, absent for the chapter.paragraph style) and is discarded from the
+# captured group either way, matching K-IFRS's own convention of paragraph_no
+# never carrying trailing punctuation; trailing whitespace is MANDATORY for
+# the same line-wrap-safety reason DIGIT_PARA_RE requires it (a wrapped
+# continuation line can legitimately start with a bare number that is not a
+# paragraph marker).
+# A THIRD, letter-suffixed style is also 본문-tier despite sitting under a
+# "부록A. 적용보충기준" / "부록 A. 적용보충기준"-labeled heading in some 장's
+# PDFs (confirmed in real 제6장/제19장): "<장번호>.<LETTER><숫자>" optionally
+# followed by a Korea-only insert-paragraph suffix "의<숫자>" (e.g. "6.A1",
+# "6.A1의2", "6.A1의3", "19.A1", "19.A2"...). 문단 1.2 of 제1장 itself defines
+# "적용보충기준" (Supplementary Application Standard) as part of 본문 --
+# "본문(적용보충기준 포함)" -- NOT part of 부록's authoritative-guidance/
+# rationale/example trio, so despite the "부록A." label these paragraphs are
+# tagged tier="본문" here (they sit in the 본문 region's own text: neither
+# split_sections_kgaap's 실무지침/결론도출근거/적용사례/소수의견 dividers nor
+# a bare "부록" line are section boundaries -- see segment.py's module
+# comment -- so this was purely a paragraph-REGEX gap, not a section-split
+# one; confirmed empirically -- without this alternative, 제6장/제19장 each
+# produced one wildly oversized 본문 chunk swallowing this whole sub-section
+# into the preceding real paragraph). Tried FIRST in the alternation (more
+# specific pattern before the more general bare-integer one) -- alternation
+# is ordered specific-to-general, the standard-safe convention, though
+# "6.102" would never reach this branch anyway since a digit (not a letter)
+# follows its dot.
+KGAAP_BODY_PARA_RE = re.compile(r"(?m)^\s*(\d+\.[A-Z]\d+(?:의\d+)?|\d+(?:\.\d+)*)\.?\s+")
+
+# K-GAAP 실무지침 (Practical Guidance, the 적용지침-equivalent tier): always
+# "실<장번호>.<문단번호>" in every sample seen (e.g. "실13.1" .. "실13.46") --
+# decimal mandatory, mirroring how K-IFRS's own "한" (Korea-only insert
+# paragraph) prefix requires at least one dotted component so a bare "실1)"
+# footnote-style marker (not observed, but not ruled out either) is never
+# mistaken for a real paragraph.
+KGAAP_GUIDANCE_PARA_RE = re.compile(r"(?m)^\s*(실\d+(?:\.\d+)+)\s+")
+
 _SLUG = {"K-IFRS": "kifrs", "K-GAAP": "kgaap", "US-GAAP": "usgaap", "CAS": "cas", "VAS": "vas"}
 
 # Matches a paragraph-number marker sitting at the start of a block (start of
@@ -78,8 +118,36 @@ _SLUG = {"K-IFRS": "kifrs", "K-GAAP": "kgaap", "US-GAAP": "usgaap", "CAS": "cas"
 # commits to the longest possible number, it either satisfies the lookahead
 # as-is or the whole match attempt fails at this position (which is exactly
 # what "no fix needed here" should mean).
+# Blank-line detection tolerates a "blank" line that is not perfectly empty
+# but contains only spaces/tabs (`\n[ \t]*\n` instead of a strict `\n\n+`) --
+# confirmed necessary against the real K-GAAP 제9장 HWP (its own attachment
+# is the one K-GAAP chapter needing an HWP fallback -- see sources.py): a
+# "blank" line between two real paragraphs there is literally "\n \n" (a
+# single stray space character on its own line), which the original
+# `\n\n+` (strictly CONSECUTIVE newlines, nothing between them) never
+# matched, so the block-start check silently never fired for the paragraph
+# right after it. Still matches a truly empty "\n\n" identically (`[ \t]*`
+# allows zero chars), so every existing K-IFRS case is unaffected.
+#
+# The alternation also gains two K-GAAP-specific shapes (harmless no-ops for
+# every other GAAP, whose paragraph numbers never start with "실" or take
+# the "<N>.<LETTER><M>" form): "실<N>.<M>" (실무지침, K-GAAP's
+# 적용지침-equivalent tier -- confirmed missing its space in the same real
+# 제9장 HWP, e.g. "실9.1조인트벤처가...") and "<N>.<LETTER><M>[의<M>]"
+# (적용보충기준, e.g. "6.A1"/"6.A1의2" -- see KGAAP_BODY_PARA_RE). The
+# letter-suffixed shape is placed BEFORE the generic bare-digit alternative:
+# since Python tries alternatives left-to-right and commits to the FIRST one
+# that succeeds (not the longest), the generic `\d{1,3}[A-Z]{0,2}(?:\.\d+)*`
+# would otherwise match just the leading "6" of "6.A1" (a shorter, WRONG,
+# but still "successful" match: `[A-Z]{0,2}` finds no letter immediately
+# after the digit run since a "." comes next, and `(?:\.\d+)*` cannot
+# consume ".A1" either since a letter follows the dot, not a digit) instead
+# of ever trying the more specific alternative at all -- same ordering
+# discipline `KGAAP_BODY_PARA_RE` already documents.
 _LEAD_NUM_RE = re.compile(
-    r"(\A|\n\n+)([ \t]*)((?>한\d{1,3}(?:\.\d+)+|(?!BC\d)(?!IE\d)[A-Z]{1,2}\d{1,3}[A-Z]{0,2}(?:\.\d+)*|\d{1,3}[A-Z]{0,2}(?:\.\d+)*))(?=\S)"
+    r"(\A|\n[ \t]*\n)([ \t]*)((?>한\d{1,3}(?:\.\d+)+|실\d{1,3}(?:\.\d+)+|"
+    r"(?!BC\d)(?!IE\d)[A-Z]{1,2}\d{1,3}[A-Z]{0,2}(?:\.\d+)*|"
+    r"\d{1,3}\.[A-Z]\d{1,3}(?:의\d+)?|\d{1,3}[A-Z]{0,2}(?:\.\d+)*))(?=\S)"
 )
 
 
@@ -117,22 +185,40 @@ def chunk_pages(pages, gaap, standard_no, standard_title, lang, source_url, as_o
     describe a whole multi-section document correctly.
 
     `para_pattern` overrides the 본문 region's paragraph regex only (적용지침
-    always uses the letter-prefixed pattern -- there is no legacy caller that
-    ever needed to override that).
+    always uses the letter-prefixed/실-prefixed pattern -- there is no legacy
+    caller that ever needed to override that).
+
+    K-GAAP (일반기업회계기준) has a document structure unrelated to K-IFRS's
+    (organized by 장/chapter with "<장번호>.<문단번호>" paragraph numbering,
+    no IFRS Foundation copyright block at all -- see
+    tools/ingest/segment.py's K-GAAP module comment), so it is routed through
+    its OWN frontmatter-stripper/section-splitter/paragraph-regex pair below
+    rather than reusing the K-IFRS ones. Every other gaap's behavior (this
+    function's pre-existing K-IFRS/US-GAAP/CAS/VAS path) is completely
+    unchanged.
     """
     full = "\n".join(p.text for p in pages)
-    kept, _dropped_info = strip_frontmatter(full)
-    sections = split_sections(kept)
     slug = _SLUG[gaap]
+
+    if gaap == "K-GAAP":
+        kept, _dropped_info = strip_frontmatter_kgaap(full)
+        sections = split_sections_kgaap(kept)
+        default_body_pattern = KGAAP_BODY_PARA_RE
+        guidance_pattern = KGAAP_GUIDANCE_PARA_RE
+    else:
+        kept, _dropped_info = strip_frontmatter(full)
+        sections = split_sections(kept)
+        default_body_pattern = DIGIT_PARA_RE
+        guidance_pattern = LETTER_PARA_RE
 
     has_structure = any(sections[k].strip() for k in ("적용지침", "결론도출근거", "적용사례"))
     body_tier = "본문" if has_structure else tier
-    body_pattern = para_pattern if para_pattern is not None else DIGIT_PARA_RE
+    body_pattern = para_pattern if para_pattern is not None else default_body_pattern
 
     recs = []
     recs += _chunk_region(sections["본문"], body_pattern, slug, gaap, standard_no,
                           standard_title, lang, body_tier, source_url, as_of)
-    recs += _chunk_region(sections["적용지침"], LETTER_PARA_RE, slug, gaap, standard_no,
+    recs += _chunk_region(sections["적용지침"], guidance_pattern, slug, gaap, standard_no,
                           standard_title, lang, "적용지침", source_url, as_of)
 
     recs = flag_oversized_chunks(recs)

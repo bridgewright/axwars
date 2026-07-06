@@ -49,6 +49,45 @@ def test_kifrs_registry_is_the_complete_kasb_enumeration():
         assert std["file_seq_pdf"] != std["file_seq_hwp"]
         assert std["tier"] == "본문"
 
+def test_kgaap_registry_is_the_complete_kasb_enumeration():
+    # Full enumeration of https://www.kasb.or.kr/front/board/List3003.do
+    # (37 rows total on the site, scraped 2026-07-06, no pagination) -- 33
+    # numbered 장 (1-33, contiguous) + 4 non-chapter items: 재무회계개념체계
+    # ("개념체계"), 일반기업회계기준 시행일 및 경과규정
+    # ("시행일-경과규정"), 보험업회계처리준칙, and 일반기업회계기준
+    # 재무제표 영문양식 ("영문양식", the only HWP-only row on the whole
+    # board). 정공법: nothing enumerated on the page is arbitrarily trimmed
+    # from this registry (the 영문양식 item is EXCLUDED at the ingestion
+    # step instead, for a documented content reason -- see the ingestion
+    # report -- not omitted from the catalog here).
+    standards = get_source("K-GAAP")["standards"]
+    assert len(standards) == 37
+
+    nos = [s["no"] for s in standards]
+    assert len(set(nos)) == len(nos), "duplicate standard_no in K-GAAP registry"
+
+    numbered = [n for n in nos if n.isdigit()]
+    assert len(numbered) == 33
+    assert sorted(numbered, key=int) == [str(i) for i in range(1, 34)]
+
+    non_numbered = set(nos) - set(numbered)
+    assert non_numbered == {"개념체계", "시행일-경과규정", "보험업회계처리준칙", "영문양식"}
+
+    for std in standards:
+        assert std["title"]
+        assert std["file_no"]
+        assert std["file_seq_hwp"]
+        assert std["tier"] == "본문"
+        # every entry except the one confirmed HWP-only item carries a PDF
+        # attachment token too
+        if std["no"] == "영문양식":
+            assert std["file_seq_pdf"] is None
+            assert std.get("format") == "hwp"
+        else:
+            assert std["file_seq_pdf"]
+            assert std["file_seq_pdf"] != std["file_seq_hwp"]
+
+
 def test_download_kasb_posts_file_no_and_seq(monkeypatch, tmp_path):
     calls = {}
 
