@@ -1,6 +1,6 @@
 import sys
 import types
-from tools.ingest.sources import SOURCES, get_source, download_kasb, KASB_DOWNLOAD_URL
+from tools.ingest.sources import SOURCES, get_source, download_kasb, KASB_DOWNLOAD_URL, download_cas_url
 
 def test_sources_cover_all_gaaps():
     assert set(SOURCES) == {"K-IFRS","K-GAAP","US-GAAP","CAS","VAS"}
@@ -88,6 +88,78 @@ def test_kgaap_registry_is_the_complete_kasb_enumeration():
             assert std["file_seq_pdf"] != std["file_seq_hwp"]
 
 
+def test_cas_registry_is_the_complete_enumeration():
+    # Full enumeration: 기본준칙 + 42 구체준칙 (casc.org.cn, latest
+    # promulgated version each) + 32 응용指南 (cas.xmu.edu.cn -- not all 42
+    # standards have one, e.g. 15/25/26/29/32/36/39/40/41/42 never got a
+    # separate 应用指南 of their own) + 20 해석 (mixed casc.org.cn/mirror
+    # provenance) = 95 total. 정공법: nothing enumerated on either site is
+    # arbitrarily trimmed from this registry.
+    standards = get_source("CAS")["standards"]
+    assert len(standards) == 95
+
+    nos = [s["no"] for s in standards]
+    assert len(set(nos)) == len(nos), "duplicate standard_no (registry key) in CAS registry"
+
+    body = [s for s in standards if not s["no"].endswith("-지침") and not s["no"].startswith("해석")]
+    guidance = [s for s in standards if s["no"].endswith("-지침")]
+    interp = [s for s in standards if s["no"].startswith("해석")]
+    assert len(body) == 43   # 기본준칙 + 42
+    assert len(guidance) == 32
+    assert len(interp) == 20
+
+    numbered_body = sorted((n for n in (s["no"] for s in body) if n.isdigit()), key=int)
+    assert numbered_body == [str(i) for i in range(1, 43)]
+    assert {s["no"] for s in body} - set(numbered_body) == {"기본준칙"}
+
+    for std in standards:
+        assert std["title"]
+        assert std["url"].startswith("https://")
+        assert std.get("format") in ("html", "pdf")
+        assert std.get("tier_hint") in ("본문", "적용지침")
+        assert std.get("provenance") in ("official", "mirror")
+
+
+def test_cas_guidance_entries_override_standard_no_to_parent():
+    # 응용指南 is always a SEPARATE download from its own standard's body
+    # (unlike K-GAAP's 실무지침, embedded in the same PDF) -- `standard_no`
+    # must point back at the parent so guidance groups with its body under
+    # one standard number, tier being the only distinguishing field.
+    standards = get_source("CAS")["standards"]
+    guidance = {s["no"]: s for s in standards if s["no"].endswith("-지침")}
+    assert guidance["21-지침"]["standard_no"] == "21"
+    assert guidance["21-지침"]["tier_hint"] == "적용지침"
+    assert guidance["21-지침"]["para_style"] == "section"
+    for no, std in guidance.items():
+        assert std["standard_no"] == no.split("-")[0]
+
+
+def test_cas_interpretations_are_standalone_not_nested_under_a_parent():
+    # 해석 (interpretations) are their OWN standalone standard_no, same
+    # convention K-IFRS's own 해석서 (e.g. "2010") already uses -- never a
+    # `standard_no` override pointing at some other 준칙 number.
+    standards = get_source("CAS")["standards"]
+    interp = [s for s in standards if s["no"].startswith("해석")]
+    assert len(interp) == 20
+    for std in interp:
+        assert "standard_no" not in std
+        assert std["tier_hint"] == "본문"
+        assert std["para_style"] == "section"
+
+
+def test_cas_pdf_attachments_carry_a_referer_for_the_anti_hotlink_cdn():
+    # 해석16-18's official PDF attachments live on upload-news.esnai.cn
+    # (casc.org.cn's own credited tech-support CDN), which 404s on a bare
+    # GET with no Referer (anti-hotlink protection) -- confirmed empirically
+    # (2026-07-06). Every registry entry whose url is on that CDN must carry
+    # the casc.org.cn notice page it was linked from as "referer".
+    standards = get_source("CAS")["standards"]
+    for std in standards:
+        if "esnai.cn" in std["url"]:
+            assert std.get("format") == "pdf"
+            assert std.get("referer", "").startswith("https://www.casc.org.cn/")
+
+
 def test_download_kasb_posts_file_no_and_seq(monkeypatch, tmp_path):
     calls = {}
 
@@ -110,3 +182,28 @@ def test_download_kasb_posts_file_no_and_seq(monkeypatch, tmp_path):
     assert calls["url"] == KASB_DOWNLOAD_URL
     assert calls["data"] == {"fileNo": "10510", "fileSeq": "1"}
     assert dest.read_bytes() == b"%PDF-fake-bytes"
+
+
+def test_download_cas_url_gets_plain_url_and_forwards_referer(monkeypatch, tmp_path):
+    calls = {}
+
+    class _Resp:
+        content = b"cas-fake-bytes"
+        def raise_for_status(self):
+            pass
+
+    def _fake_get(url, headers=None, timeout=None):
+        calls["url"] = url
+        calls["headers"] = headers
+        return _Resp()
+
+    fake_requests = types.SimpleNamespace(get=_fake_get)
+    monkeypatch.setitem(sys.modules, "requests", fake_requests)
+
+    dest = tmp_path / "cas_해석16.pdf"
+    out = download_cas_url("https://upload-news.esnai.cn/x.pdf", dest,
+                           referer="https://www.casc.org.cn/notice.shtml")
+    assert out == dest
+    assert calls["url"] == "https://upload-news.esnai.cn/x.pdf"
+    assert calls["headers"]["Referer"] == "https://www.casc.org.cn/notice.shtml"
+    assert dest.read_bytes() == b"cas-fake-bytes"

@@ -1,5 +1,6 @@
 from tools.ingest.extract import Page
-from tools.ingest.chunk import chunk_pages, ChunkingError, KGAAP_BODY_PARA_RE
+from tools.ingest.chunk import (chunk_pages, ChunkingError, KGAAP_BODY_PARA_RE,
+                                 CAS_ARTICLE_RE, CAS_GUIDANCE_PARA_RE)
 
 def test_chunk_splits_on_paragraph_numbers():
     text = "22 리스이용자는 사용권자산을 인식한다.\n23 리스부채는 현재가치로 측정한다."
@@ -271,3 +272,114 @@ def test_chunk_pages_kgaap_bare_integer_numbering_for_non_chapter_items():
                        "일반기업회계기준 시행일 및 경과규정", "ko", "u", "2026-07-06")
     assert [r.paragraph_no for r in recs] == ["1", "2"]
     assert all(r.tier == "본문" for r in recs)
+
+
+# ---------------------------------------------------------------------------
+# CAS (中国企业会计准则) chunking -- routed through its own frontmatter/
+# section/paragraph-regex path (see segment.py's CAS module comment and
+# chunk_pages' own docstring), NOT K-IFRS's or K-GAAP's. Mirrors the real
+# structure confirmed against the downloaded casc.org.cn/cas.xmu.edu.cn
+# pages: Chinese-numeral "第X条" articles for 준칙 본문, bare "<한자>、"
+# top-level sections for 응용指南/해석, and (unlike K-IFRS/K-GAAP) tier is
+# ALWAYS caller-supplied since a CAS download is always single-tier already.
+# ---------------------------------------------------------------------------
+
+def test_cas_article_re_matches_articles_and_excludes_chapter_section_headings():
+    text = "第一章 总则\n第一条 第一条内容。\n第一节 识别\n第二条 第二条内容。\n第十条 第十条内容。\n"
+    matches = [m.group(1) for m in CAS_ARTICLE_RE.finditer(text)]
+    assert matches == ["一", "二", "十"]
+
+
+def test_cas_guidance_para_re_matches_bare_top_level_sections_only():
+    text = "一、第一节要点\n（一）子项一，不是新段落。\n1.子项二，也不是新段落。\n二、第二节要点\n"
+    matches = [m.group(1) for m in CAS_GUIDANCE_PARA_RE.finditer(text)]
+    assert matches == ["一", "二"]
+
+
+_CAS_BODY_DOC = """财会[2006]3号
+第一章 总则
+第一条 为了规范测试准则的确认、计量和相关信息的披露，制定本准则。
+第二条 测试文，是指企业因测试而发生的相关事项。
+地址：北京市西城区月坛南街14号月新大厦2层 邮编：100045 联系邮箱：kjzz@casc.org.cn
+版权所有财政部会计准则委员会，如需转载，请注明来源 技术支持：上海国家会计学院
+"""
+
+
+def test_chunk_pages_cas_splits_chinese_numeral_articles():
+    recs = chunk_pages([Page(_CAS_BODY_DOC, 1, "p1")], "CAS", "99", "测试准则", "zh",
+                       "https://www.casc.org.cn/x", "2006-01-01")
+    texts = [r.text for r in recs]
+    assert not any("地址：" in t for t in texts)
+    assert not any("财会[2006]3号" in t for t in texts)
+
+    by_para = {r.paragraph_no: r for r in recs}
+    assert by_para["一"].tier == "본문"
+    assert by_para["一"].id == "cas:99:본문:一"
+    assert "为了规范测试准则" in by_para["一"].text
+    assert "测试文，是指" in by_para["二"].text
+
+
+_CAS_GUIDANCE_DOC = """《企业会计准则第 99 号——测试》应用指南
+时间：2022-08-05 浏览：次
+《企业会计准则第 99 号——测试》应用指南
+一、测试要点一
+本准则第一条规定了测试要点一的处理方法。
+二、测试要点二
+本准则第二条规定了测试要点二的处理方法。
+"""
+
+
+def test_chunk_pages_cas_guidance_uses_section_pattern_and_groups_under_parent_standard_no():
+    # 응용指南 is always a SEPARATE download from its parent 준칙's own body
+    # (see sources.py's CAS registry) -- standard_no is passed as the
+    # PARENT's own number by the caller (tools/ingest/run_ingest.py's
+    # `ingest_cas`), not the registry's own "<N>-지침" key, so guidance
+    # groups with its body under one standard_no with tier as the only
+    # distinguishing field, same convention K-GAAP's own 실무지침 uses.
+    recs = chunk_pages([Page(_CAS_GUIDANCE_DOC, 1, "p1")], "CAS", "99", "测试", "zh",
+                       "https://cas.xmu.edu.cn/x", "2022-08-05", tier="적용지침",
+                       para_pattern=CAS_GUIDANCE_PARA_RE)
+    by_para = {r.paragraph_no: r for r in recs}
+    assert by_para["一"].tier == "적용지침"
+    assert by_para["一"].id == "cas:99:적용지침:一"
+    assert "测试要点一的处理方法" in by_para["一"].text
+    assert "测试要点二的处理方法" in by_para["二"].text
+    assert not any("浏览：次" in r.text for r in recs)
+
+
+_CAS_INTERP_DOC = """企业会计准则解释第99号
+一、关于测试问题的会计处理
+该问题主要涉及测试准则。
+二、生效日期
+本解释自公布之日起施行。
+"""
+
+
+def test_chunk_pages_cas_interpretation_keeps_bonmun_tier_with_standalone_standard_no():
+    # 해석 (interpretations) are kept as 본문 tier (same authority as the
+    # standard they interpret) but use the SECTION pattern, not the article
+    # pattern, and are their OWN standalone standard_no -- same convention
+    # K-IFRS's own 해석서 (e.g. "2010") already uses, never nested under a
+    # parent 준칙 number.
+    recs = chunk_pages([Page(_CAS_INTERP_DOC, 1, "p1")], "CAS", "해석99",
+                       "企业会计准则解释第99号", "zh", "https://www.casc.org.cn/x",
+                       "2026-01-01", tier="본문", para_pattern=CAS_GUIDANCE_PARA_RE)
+    by_para = {r.paragraph_no: r for r in recs}
+    assert by_para["一"].tier == "본문"
+    assert by_para["一"].id == "cas:해석99:본문:一"
+    assert "关于测试问题的会计处理" in by_para["一"].text
+    assert "本解释自公布之日起施行" in by_para["二"].text
+
+
+def test_chunk_pages_cas_guidance_falls_back_to_single_chunk_without_section_headings():
+    # Confirmed real case: CAS17 借款费用's own 应用指南 is plain
+    # unstructured prose with no "<한자>、" heading at all -- degrades to a
+    # single unnumbered ("0") chunk, same universal fallback every other
+    # GAAP's chunker already has.
+    text = "根据本准则规定，测试费用应当予以资本化，不存在任何编号小节。"
+    recs = chunk_pages([Page(text, 1, "p1")], "CAS", "99", "测试", "zh", "u",
+                       "2022-08-05", tier="적용지침", para_pattern=CAS_GUIDANCE_PARA_RE)
+    assert len(recs) == 1
+    assert recs[0].paragraph_no == "0"
+    assert recs[0].tier == "적용지침"
+    assert recs[0].text == text

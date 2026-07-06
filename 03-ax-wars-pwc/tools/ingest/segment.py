@@ -696,3 +696,200 @@ def split_sections_kgaap(text):
         end = boundaries[i + 1][0] if i + 1 < len(boundaries) else len(text)
         regions[name].append(text[start:end])
     return {k: "".join(v) for k, v in regions.items()}
+
+
+# ---------------------------------------------------------------------------
+# CAS (中国企业会计准则 / China ASBE) segmentation
+#
+# Structurally unrelated to both K-IFRS's and K-GAAP's templates above: CAS
+# source documents are HTML pages (trafilatura-extracted -- see
+# tools/ingest/extract.py's "html" branch), one paragraph per source `<p>`/
+# table-row, from two different sites (see tools/ingest/sources.py's CAS
+# registry docstring for why): casc.org.cn (中国会计准则委员会, official)
+# for 준칙 본문 + most 해석, and cas.xmu.edu.cn (Xiamen University mirror)
+# for all 응用指南 and the remaining 해석. THREE fundamentally different
+# per-file shapes, confirmed against all 95 real downloaded files
+# (43 준칙 본문 incl. 기본준칙 + 32 응용지침 + 20 해석):
+#
+# 1. 준칙 본문 (기본준칙 + 42 구체준칙): chaptered, numbered "第<한자숫자>条"
+#    (Chinese-numeral articles, e.g. "第一条".."第六十八条" for CAS21 租赁),
+#    optionally grouped under "第<한자숫자>章" (chapter) and "第<한자숫자>节"
+#    (section) headings -- both excluded from paragraph-boundary detection
+#    below by requiring the "条" suffix specifically (a chapter/section
+#    heading never ends in "条"). No appendix/BC/IE-equivalent structure
+#    exists in these documents at all -- 응용指南 and 해석 are always
+#    SEPARATE files/URLs from their parent 준칙's own body (unlike K-IFRS's
+#    부록 A/B/C or K-GAAP's 실무지침, both embedded in the SAME PDF as 본문),
+#    so there is no within-document tier split to perform here; tier is a
+#    property of which FILE a given download is, decided by the caller (see
+#    chunk_pages' `tier`/`para_pattern` parameters, and
+#    tools/ingest/run_ingest.py's `ingest_cas`).
+# 2. 응용指南 (application guidance, only 32 of the 42 구체준칙 have one --
+#    e.g. 15/25/26/29/32/36/39/40/41/42 never got a separate 应用指南 of
+#    their own): unchaptered prose, top-level sections numbered bare
+#    "<한자숫자>、" (Chinese numeral + IDEOGRAPHIC COMMA, e.g. "一、"，"二、"，
+#    no space after -- confirmed distinct from 준칙 본문's "第X条 " shape,
+#    which DOES carry a real space/nbsp after "条"), with nested "（一）"
+#    (parenthesized) and "1." (arabic-dot) sub-items that carry no
+#    line-start numeral alone and so are swept up into their enclosing
+#    "<한자숫자>、" chunk (coarser-grained-but-faithful, same tolerance
+#    K-IFRS's own chunker already has for prose subheadings between two real
+#    paragraph markers). One confirmed exception (CAS17 借款费用's
+#    guidance): plain unstructured prose with no "<한자숫자>、" heading at
+#    all -- degrades to a single unnumbered ("0") chunk, same universal
+#    fallback every other GAAP's chunker already has.
+# 3. 해석 (interpretations 1-20): SAME "<한자숫자>、" top-level numbering as
+#    응용指南 (not article-numbered like 본문), typically closing with a
+#    "<N>、生效日期" (effective-date) section. Kept as 본문 tier per the task
+#    spec (해석 has the same authority as the standard it interprets) but
+#    chunked with the SECTION pattern, not the article pattern -- selected
+#    per-file by the caller via `para_pattern`, exactly like 응용指南.
+#
+# Both `strip_frontmatter_cas` and `split_sections_cas` are anchor-based,
+# same discipline as every other stripper in this module: every anchor below
+# is independently optional (a miss just leaves that particular piece of
+# boilerplate in place as harmless residue attached to the nearest
+# unnumbered "0" chunk -- never an unbounded reach into real content).
+# Confirmed boilerplate shapes, by source:
+#   * casc.org.cn 준칙 본문 pages: an optional bare leading "财会[YYYY]N号"-
+#     style circular-number line (bracket style is NOT consistent --
+#     confirmed ASCII "[ ]" in some samples, full-width "〔 〕" and small
+#     tortoise-shell "﹝ ﹞" in others), then straight into 章/条 -- no
+#     other frontmatter, no copyright block (this is a PRC government
+#     ministry's own portal, not an IFRS-Foundation-style copyrighted
+#     translation), and a STABLE trailing footer on every single page
+#     (address/email/copyright/tech-support/WeChat mentions).
+#   * casc.org.cn 해석 pages that publish the interpretation's text inline
+#     (confirmed for 해석4-8, 19, 20): a standard PRC official-notice
+#     (公文) preamble -- "财会〔...〕N号" + a distribution-list line ending
+#     "...有关单位：" + a short transmittal paragraph ending "现予印发，请
+#     遵照执行。" + "执行中如有问题，请及时反馈我部。" + a right-aligned
+#     "财 政 部" + date signature block -- before the interpretation's own
+#     title repeats and its real "一、..." content begins. (The other 13
+#     해석's casc.org.cn notice pages are memo-ONLY, pointing to a detached
+#     attachment -- handled by sourcing those from elsewhere entirely, see
+#     sources.py; this anchor legitimately does not fire for them.)
+#   * cas.xmu.edu.cn pages (응용指南 + 해석 1-3/9-15): the site's own title
+#     line, then a "时间：YYYY-MM-DD 浏览：次" (upload-date/view-count) line,
+#     then EITHER the title repeated a second time (응용指南 template) OR a
+#     "发文文号/颁布单位/颁布日期/实施日期/废除日期/原文网址" metadata table
+#     (해석 template, rendered by trafilatura as a sequence of "| key |
+#     value |" lines) -- before real content begins. No trailing footer on
+#     this site (confirmed absent from every sample).
+# ---------------------------------------------------------------------------
+
+_CJK_NUM = "一二三四五六七八九十百千零两"
+
+# Optional bare leading circular-number line on casc.org.cn 준칙 본문 pages,
+# e.g. "财会[2006]3号" / "财会〔2021〕35号" / "财会﹝2017﹞16号" -- bracket
+# style confirmed inconsistent across samples (ASCII, full-width tortoise-
+# shell, small-form tortoise-shell), so all three are accepted. Anchored to
+# the very start of the text (re.match, not re.search) since this is only
+# ever seen as literally the first line -- never searched for elsewhere, so
+# it can never mistake a mid-document mention of some OTHER circular for
+# frontmatter.
+_CAS_WENHAO_LINE_RE = re.compile(r"\s*财会[\[〔﹝][0-9]{4}[\]〕﹞]\s*[0-9]+\s*号\s*\n")
+
+# cas.xmu.edu.cn's own upload-date/view-count line, present near the front of
+# every mirror page (응용指南 and 해석 alike): "时间：2022-08-05 浏览：次".
+_CAS_XMU_VIEWCOUNT_RE = re.compile(r"时间[：:]\s*\d{4}-\d{2}-\d{2}\s*浏览[：:]\s*次")
+
+# The LAST row of cas.xmu.edu.cn's own 해석 metadata table (see module
+# docstring) -- "原文网址" ("original source URL"), always followed by the
+# casc.org.cn URL this very document was itself transcribed from. Cutting
+# through the end of this line removes the whole table in one shot (the
+# table's own first row, and every row above "원문网址", is between the
+# viewcount line and this row with nothing else -- confirmed in every 해석
+# 1-3/9-15 sample) without needing to separately anchor each of its
+# individual "发文文号"/"颁布单位"/... rows. A no-op (nothing to remove) for
+# every 응용指南 page, which has no such table.
+_CAS_XMU_SOURCE_URL_ROW_RE = re.compile(r"原文网址[^\n]*\n?")
+
+# casc.org.cn's own official-notice (公文) transmittal preamble for the 7
+# 해석 it publishes inline (4-8, 19, 20) -- see module docstring. Anchored on
+# the stable sign-off phrase "请遵照执行" through the dated "财政部" signature
+# block that always immediately follows it; bounded gaps throughout, same
+# discipline as every other anchor in this module (a miss here just leaves
+# the memo attached to the nearest unnumbered "0" chunk, never an unbounded
+# reach into real content). Legitimately does not fire on 준칙 본문 pages
+# (which have no transmittal memo at all) or on any 해석 sourced from
+# cas.xmu.edu.cn (whose own template has no such memo either -- its "原文网址"
+# row is a plain citation, not a live transmittal paragraph).
+_CAS_MEMO_RE = re.compile(
+    r"请遵照执行[。.]?[\s\S]{0,120}?财\s*政\s*部[\s\S]{0,20}?[0-9]{4}\s*年\s*[0-9]{1,2}\s*月\s*[0-9]{1,2}\s*日"
+)
+
+# The stable trailing footer on every casc.org.cn page (본문 and inline-
+# published 해석 alike): a physical address/postcode/email line followed by
+# a copyright/tech-support attribution and two WeChat mentions. Confirmed
+# identical, verbatim, across every one of the 63 casc.org.cn-sourced files
+# downloaded. Absent from cas.xmu.edu.cn pages (confirmed no trailing
+# boilerplate there at all) -- a no-op for those.
+_CAS_FOOTER_RE = re.compile(r"地址：\s*北京市西城区月坛南街")
+
+
+def strip_frontmatter_cas(text):
+    """CAS counterpart to strip_frontmatter()/strip_frontmatter_kgaap(): strips
+    whichever of the site-specific boilerplate shapes documented in this
+    module's CAS section are present (bare circular-number line, casc.org.cn
+    transmittal memo, cas.xmu.edu.cn view-count line, cas.xmu.edu.cn 해석
+    metadata table, casc.org.cn trailing footer) -- every step is
+    independently no-op-safe, so this never mistakes real 준칙/응용指南/해석
+    content for frontmatter even when any subset of these anchors is absent
+    (e.g. every 응용指南 page legitimately has no memo and no metadata
+    table; every 준칙 본문 page legitimately has no view-count line at all).
+
+    Returns (kept_text, dropped_info) -- same shape as strip_frontmatter()'s
+    own return value."""
+    info = {"copyright_removed": False, "toc_removed": False, "toc_anchor": None,
+            "chars_dropped": 0, "dropped_text": ""}
+    cut = 0
+
+    wenhao = _CAS_WENHAO_LINE_RE.match(text)
+    if wenhao:
+        cut = wenhao.end()
+        info["copyright_removed"] = True
+
+    memo = _CAS_MEMO_RE.search(text, cut, cut + 700)
+    if memo:
+        cut = memo.end()
+        info["toc_removed"] = True
+        info["toc_anchor"] = "casc_transmittal_memo"
+
+    viewcount = _CAS_XMU_VIEWCOUNT_RE.search(text, cut, cut + 300)
+    if viewcount:
+        cut = viewcount.end()
+        info["toc_removed"] = True
+        info["toc_anchor"] = info["toc_anchor"] or "xmu_viewcount"
+
+    source_row = _CAS_XMU_SOURCE_URL_ROW_RE.search(text, cut, cut + 800)
+    if source_row:
+        cut = source_row.end()
+        info["toc_removed"] = True
+        info["toc_anchor"] = "xmu_metadata_table"
+
+    kept = text[cut:]
+    footer = _CAS_FOOTER_RE.search(kept)
+    if footer:
+        kept = kept[:footer.start()]
+        info["copyright_removed"] = True
+
+    info["chars_dropped"] = len(text) - len(kept)
+    info["dropped_text"] = text[:cut]
+    return kept, info
+
+
+def split_sections_cas(text):
+    """CAS counterpart to split_sections()/split_sections_kgaap(). Unlike
+    K-IFRS/K-GAAP, a CAS download is ALWAYS single-tier already -- 준칙 본문,
+    응용指南, and 해석 are always separate files/URLs (see sources.py's CAS
+    registry and this module's CAS docstring above), never bundled into one
+    PDF the way K-IFRS packs 본문+부록+BC+IE together. So there is no real
+    within-document region to split out here: the whole (already
+    frontmatter-stripped) text is returned as 본문, with the other three
+    keys always empty. This deliberately makes chunk_pages' own
+    `has_structure` check False for every CAS document, so tier is decided
+    by the CALLER (chunk_pages' `tier` parameter) per file, exactly as
+    tools/ingest/run_ingest.py's `ingest_cas` needs -- not guessed from
+    content that was never split-worthy to begin with."""
+    return {"본문": text, "적용지침": "", "결론도출근거": "", "적용사례": ""}

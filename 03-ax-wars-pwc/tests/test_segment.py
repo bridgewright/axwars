@@ -1,6 +1,7 @@
 from tools.ingest.segment import (strip_frontmatter, split_sections, SECTION_KEYS,
                                    _strip_chapter_toc_previews, _TOC_SCAN_BOUND,
-                                   strip_frontmatter_kgaap, split_sections_kgaap)
+                                   strip_frontmatter_kgaap, split_sections_kgaap,
+                                   strip_frontmatter_cas, split_sections_cas)
 
 # Small synthetic fixture mirroring the REAL structure confirmed against the
 # downloaded kifrs_1002/1019/1116 PDFs/HWPs: cover + bilingual copyright +
@@ -540,3 +541,126 @@ def test_split_sections_kgaap_drops_dissenting_opinion_into_bc_bucket():
     assert "반대의견 문단이다" in sections["결론도출근거"]
     assert sections["적용지침"] == ""
     assert sections["적용사례"] == ""
+
+
+# ---------------------------------------------------------------------------
+# CAS (中国企业会计准则) segmentation -- HTML-sourced (casc.org.cn +
+# cas.xmu.edu.cn), a structurally unrelated template from both K-IFRS's and
+# K-GAAP's (see segment.py's CAS module comment). Fixtures below mirror the
+# REAL structure confirmed against the downloaded casc.org.cn/cas.xmu.edu.cn
+# pages (trafilatura-extracted text, one paragraph per source line).
+# ---------------------------------------------------------------------------
+
+_CAS_BODY_DOC = """财会[2006]3号
+第一章 总则
+第一条 为了规范测试准则的确认、计量和相关信息的披露，根据《企业会计准则——基本准则》，制定本准则。
+第二条 测试文，是指企业因测试而发生的相关事项。
+第二章 确认和计量
+第三条 企业发生的测试费用，应当予以确认。
+地址：北京市西城区月坛南街14号月新大厦2层 邮编：100045 联系邮箱：kjzz@casc.org.cn
+版权所有财政部会计准则委员会，如需转载，请注明来源 技术支持：上海国家会计学院
+财政部微信
+会计准则委员会微信二维码
+"""
+
+
+def test_strip_frontmatter_cas_removes_wenhao_line_and_trailing_footer():
+    kept, info = strip_frontmatter_cas(_CAS_BODY_DOC)
+    assert info["copyright_removed"] is True
+    assert "财会[2006]3号" not in kept
+    assert "地址：" not in kept
+    assert "会计准则委员会微信二维码" not in kept
+    assert "第一条 为了规范测试准则" in kept
+    assert "第三条 企业发生的测试费用" in kept
+
+
+def test_strip_frontmatter_cas_noop_without_any_anchor():
+    plain = "第一条 첫 문단.\n第二条 둘째 문단."
+    kept, info = strip_frontmatter_cas(plain)
+    assert kept == plain
+    assert info["copyright_removed"] is False
+    assert info["chars_dropped"] == 0
+
+
+_CAS_INLINE_INTERP_DOC = """财会〔2026〕7号
+国务院有关部委、有关直属机构，各省、自治区、直辖市、计划单列市财政厅（局），新疆生产建设兵团财政局，财政部各地监管局，有关单位：
+为深入贯彻实施企业会计准则，我们制定了《企业会计准则解释第99号》，现予印发，请遵照执行。
+执行中如有问题，请及时反馈我部。
+财 政 部
+2026年6月4日
+企业会计准则解释第99号
+一、关于测试问题的会计处理
+该问题主要涉及测试准则。
+二、生效日期
+本解释自公布之日起施行。
+地址：北京市西城区月坛南街14号月新大厦2层 邮编：100045 联系邮箱：kjzz@casc.org.cn
+版权所有财政部会计准则委员会，如需转载，请注明来源 技术支持：上海国家会计学院
+"""
+
+
+def test_strip_frontmatter_cas_removes_casc_transmittal_memo():
+    kept, info = strip_frontmatter_cas(_CAS_INLINE_INTERP_DOC)
+    assert info["toc_anchor"] == "casc_transmittal_memo"
+    assert "国务院有关部委" not in kept
+    assert "请遵照执行" not in kept
+    assert "地址：" not in kept
+    assert "一、关于测试问题的会计处理" in kept
+    assert "二、生效日期" in kept
+
+
+_CAS_XMU_GUIDANCE_DOC = """《企业会计准则第 99 号——测试》应用指南
+时间：2022-08-05 浏览：次
+《企业会计准则第 99 号——测试》应用指南
+一、测试要点一
+本准则第一条规定了测试要点一的处理方法。
+二、测试要点二
+本准则第二条规定了测试要点二的处理方法。
+"""
+
+
+def test_strip_frontmatter_cas_removes_xmu_viewcount_line():
+    kept, info = strip_frontmatter_cas(_CAS_XMU_GUIDANCE_DOC)
+    assert info["toc_anchor"] == "xmu_viewcount"
+    assert "浏览：次" not in kept
+    assert "一、测试要点一" in kept
+    assert "二、测试要点二" in kept
+
+
+_CAS_XMU_INTERP_DOC = """企业会计准则解释第99号-财会〔2020〕1号
+时间：2022-08-05 浏览：次
+| 企业会计准则解释第99号 | |
+| 发文文号 | 财会〔2020〕1号 |
+| 颁布单位 | 财政部 |
+| 颁布日期 | 2020-01-01 |
+| 实施日期 | |
+| 废除日期 | |
+| 原文网址 | https://www.casc.org.cn/2020/0101/999999.shtml |
+企业会计准则解释第99号
+一、关于测试问题
+测试解释正文内容。
+二、生效日期
+本解释自公布之日起施行。
+"""
+
+
+def test_strip_frontmatter_cas_removes_xmu_metadata_table_through_source_url_row():
+    kept, info = strip_frontmatter_cas(_CAS_XMU_INTERP_DOC)
+    assert info["toc_anchor"] == "xmu_metadata_table"
+    assert "发文文号" not in kept
+    assert "原文网址" not in kept
+    assert "浏览：次" not in kept
+    assert "一、关于测试问题" in kept
+    assert "测试解释正文内容" in kept
+
+
+def test_split_sections_cas_always_returns_full_text_as_bonmun():
+    # CAS downloads are always single-tier already (준칙 본문 / 응용指南 /
+    # 해석 are separate files, never bundled in one document the way
+    # K-IFRS/K-GAAP pack 본문+부록+BC+IE together) -- see split_sections_cas's
+    # own docstring. Tier is decided by the CALLER (chunk_pages' `tier`
+    # param), not guessed from content here.
+    text = "第一条 첫 문단이다.\n第二条 둘째 문단이다."
+    sections = split_sections_cas(text)
+    assert set(sections) == set(SECTION_KEYS)
+    assert sections["본문"] == text
+    assert sections["적용지침"] == sections["결론도출근거"] == sections["적용사례"] == ""

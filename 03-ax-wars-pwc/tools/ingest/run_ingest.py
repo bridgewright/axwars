@@ -1,8 +1,8 @@
 import argparse, json, os
 from .sources import get_source
 from .extract import extract
-from .chunk import chunk_pages, _SLUG
-from .fidelity import assert_retained_coverage, assert_no_leak, detect_shadows
+from .chunk import chunk_pages, _SLUG, ChunkingError, CAS_GUIDANCE_PARA_RE
+from .fidelity import assert_retained_coverage, assert_no_leak, detect_shadows, FidelityError
 from .pack import pack
 
 def download_path(download_dir, gaap, standard_no, fmt):
@@ -83,6 +83,73 @@ def ingest_gaap(gaap, download_dir, skip_nos=()):
               f"shadows_removed={shadow_removed})")
         records += recs
     return records
+
+def ingest_cas(download_dir):
+    """CAS-specific counterpart to ingest_gaap(): the CAS registry mixes
+    THREE different document shapes in one list (see sources.py's CAS
+    registry docstring) -- 준칙 본문 (article-numbered, tier=본문,
+    standard_no == registry `no`), 응용指南 (section-numbered, tier=적용지침,
+    standard_no OVERRIDDEN to the parent standard's own number so guidance
+    groups with its body), and 해석 (section-numbered, tier=본문, standalone
+    standard_no) -- each entry needing its own standard_no/tier/paragraph-
+    pattern resolution that ingest_gaap's single per-gaap tier lookup was
+    never built to express. Reuses every other primitive ingest_gaap() does
+    (extract, chunk_pages, assert_retained_coverage, detect_shadows,
+    assert_no_leak) completely unchanged.
+
+    Unlike ingest_gaap() (which lets a FidelityError/ChunkingError propagate
+    and abort the whole gaap -- the deliberate K-IFRS/K-GAAP fail-fast
+    design, see fidelity.py), a gate failure here EXCLUDES just that one
+    standard (logged as NEEDS-REVIEW in the returned report) and continues
+    with the rest -- CAS spans 95 documents pulled from two different
+    scraped sites with materially more per-document structural variance
+    than K-IFRS/K-GAAP's own single-source pipelines, so one unanticipated
+    edge case should not block shipping the other 94 clean ones. 0 leaks
+    must still hold for whatever IS shipped; a per-standard verdict table is
+    the point of the returned report.
+
+    Returns (records, report) -- report is a list of per-standard dicts
+    (no, standard_no, title, provenance, tier, chunks, leak_pass, shadows,
+    verdict) suitable for rendering the ingestion report table directly."""
+    src = get_source("CAS")
+    records, report = [], []
+    for std in src["standards"]:
+        fmt = std.get("format", src["format"])
+        path = download_path(download_dir, "CAS", std["no"], fmt)
+        row = {"no": std["no"], "standard_no": std.get("standard_no", std["no"]),
+               "title": std["title"], "provenance": std.get("provenance", "?"),
+               "tier": std.get("tier_hint", "본문"), "chunks": 0, "leak_pass": None,
+               "shadows": 0, "verdict": None}
+        if not os.path.exists(path):
+            row["verdict"] = "MISSING (not downloaded)"
+            report.append(row)
+            print(f"  CAS {std['no']}: MISSING ({std['title']}) -- not downloaded")
+            continue
+        try:
+            pages = extract(path, fmt)
+            as_of = std.get("as_of", src.get("as_of", ""))
+            standard_no = std.get("standard_no", std["no"])
+            tier = std.get("tier_hint", "본문")
+            para_pattern = CAS_GUIDANCE_PARA_RE if std.get("para_style") == "section" else None
+            recs = chunk_pages(pages, "CAS", standard_no, std["title"], src["lang"],
+                               std.get("url", ""), as_of, tier=tier, para_pattern=para_pattern)
+            _cov, info = assert_retained_coverage("\n".join(p.text for p in pages), recs, gaap="CAS")
+            recs, shadow_removed = detect_shadows(recs)
+            assert_no_leak(recs)
+        except (FidelityError, ChunkingError) as e:
+            row["verdict"] = f"EXCLUDED - NEEDS REVIEW ({e})"
+            report.append(row)
+            print(f"  CAS {std['no']}: EXCLUDED -- {e}")
+            continue
+        row.update({"chunks": len(recs), "leak_pass": True, "shadows": shadow_removed,
+                    "verdict": "OK"})
+        report.append(row)
+        print(f"  CAS {std['no']} ({std['title']}, {row['provenance']}): "
+              f"retained={info['retained_chars']} dropped={info['dropped_chars']} of "
+              f"{info['total_chars']} chars, {len(recs)} records, shadows_removed={shadow_removed}")
+        records += recs
+    return records, report
+
 
 def write_without_vectors(gaap, recs, corpus_dir):
     """Write ONE gaap's corpus/<slug>.jsonl.zst and MERGE its manifest entry

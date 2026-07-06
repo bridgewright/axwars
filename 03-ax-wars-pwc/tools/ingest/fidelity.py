@@ -12,7 +12,8 @@ from dataclasses import replace
 # chunk.py, so this (like chunk.py's own top-level `from .segment import
 # ...`) is safe as a module-level import.
 from .segment import (_BC_DIVIDER_RE, _IE_DIVIDER_RE, _BOARD_RESOLUTION_RE, _COPYRIGHT_TAIL_RE,
-                       _KGAAP_DISSENT_DIVIDER_RE)
+                       _KGAAP_DISSENT_DIVIDER_RE, _CAS_FOOTER_RE, _CAS_MEMO_RE,
+                       _CAS_XMU_SOURCE_URL_ROW_RE)
 
 class FidelityError(Exception):
     pass
@@ -62,8 +63,12 @@ def retained_text_for_coverage(raw_text, gaap="K-IFRS"):
 
     `gaap="K-GAAP"` routes through strip_frontmatter_kgaap/split_sections_kgaap
     instead (K-GAAP's document structure is unrelated to K-IFRS's -- see
-    tools/ingest/segment.py's K-GAAP module comment); every other gaap keeps
-    the original K-IFRS-shaped path unchanged.
+    tools/ingest/segment.py's K-GAAP module comment); `gaap="CAS"` likewise
+    routes through strip_frontmatter_cas/split_sections_cas (see that
+    module's CAS comment -- split_sections_cas always returns 본문=full text
+    and the other three regions empty, so the "retained" baseline here is
+    just the frontmatter-stripped text in full); every other gaap keeps the
+    original K-IFRS-shaped path unchanged.
 
     Import is local to avoid a module-load cycle (chunk.py imports this
     module for flag_oversized_chunks)."""
@@ -71,6 +76,10 @@ def retained_text_for_coverage(raw_text, gaap="K-IFRS"):
         from .segment import strip_frontmatter_kgaap, split_sections_kgaap
         kept, frontmatter_info = strip_frontmatter_kgaap(raw_text)
         sections = split_sections_kgaap(kept)
+    elif gaap == "CAS":
+        from .segment import strip_frontmatter_cas, split_sections_cas
+        kept, frontmatter_info = strip_frontmatter_cas(raw_text)
+        sections = split_sections_cas(kept)
     else:
         from .segment import strip_frontmatter, split_sections
         kept, frontmatter_info = strip_frontmatter(raw_text)
@@ -181,6 +190,24 @@ _LEAK_PARAGRAPH_NO_RE = re.compile(r"^(BC|IE)\d")
 # numbering never uses).
 _KGAAP_LEAK_PARAGRAPH_NO_RE = re.compile(r"^(결\d|사례\d|소\d)")
 
+# CAS-specific (see tools/ingest/segment.py's CAS module comment): reused,
+# not redefined, same "assert_no_leak can never drift out of sync with what
+# segmentation itself excludes" rationale as every other import from
+# segment.py above. Unlike K-IFRS/K-GAAP, CAS has no dropped-content bucket
+# at all (응용指南/해석 are both KEPT, not dropped -- see the task spec), so
+# there is no CAS paragraph_no-prefix signature to add here; only the three
+# boilerplate shapes strip_frontmatter_cas is meant to have already removed
+# -- the casc.org.cn trailing footer, the casc.org.cn transmittal-memo
+# preamble, and cas.xmu.edu.cn's own "原文网址" metadata-table row -- need a
+# leak signature, as a hard backstop in case that stripping ever misses.
+# Inert no-ops for every other GAAP: none of these Chinese-language phrases
+# can appear in Korean/English K-IFRS/K-GAAP text.
+_CAS_LEAK_SIGNATURES = (
+    ("cas_footer", _CAS_FOOTER_RE, "text"),
+    ("cas_transmittal_memo", _CAS_MEMO_RE, "text"),
+    ("cas_xmu_source_url_row", _CAS_XMU_SOURCE_URL_ROW_RE, "text"),
+)
+
 # name -> (matcher, where) -- "text" matchers run against record.text,
 # "paragraph_no" matchers run against record.paragraph_no.
 _LEAK_SIGNATURES = (
@@ -195,7 +222,7 @@ _LEAK_SIGNATURES = (
     # K-GAAP-specific (see above) -- inert no-ops for every other GAAP.
     ("kgaap_dissent_divider", _KGAAP_DISSENT_DIVIDER_RE, "text"),
     ("paragraph_no_kgaap_dropped", _KGAAP_LEAK_PARAGRAPH_NO_RE, "paragraph_no"),
-)
+) + _CAS_LEAK_SIGNATURES
 
 
 def detect_leaks(records):

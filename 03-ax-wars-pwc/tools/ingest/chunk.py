@@ -1,7 +1,8 @@
 import re
 from gaap_standards_mcp.schema import Record
 from gaap_standards_mcp.normalize import normalize_text
-from .segment import strip_frontmatter, split_sections, strip_frontmatter_kgaap, split_sections_kgaap
+from .segment import (strip_frontmatter, split_sections, strip_frontmatter_kgaap, split_sections_kgaap,
+                       strip_frontmatter_cas, split_sections_cas)
 from .fidelity import flag_oversized_chunks
 
 # 본문: digit paragraph numbers -- "1", "22", "5.5.1", "40G" -- plus the
@@ -88,6 +89,33 @@ KGAAP_BODY_PARA_RE = re.compile(r"(?m)^\s*(\d+\.[A-Z]\d+(?:의\d+)?|\d+(?:\.\d+)
 # footnote-style marker (not observed, but not ruled out either) is never
 # mistaken for a real paragraph.
 KGAAP_GUIDANCE_PARA_RE = re.compile(r"(?m)^\s*(실\d+(?:\.\d+)+)\s+")
+
+# CAS (中国企业会计准则) 준칙 본문: Chinese-numeral articles "第<한자숫자>条"
+# (e.g. "第一条".."第六十八条" for CAS21 租赁) -- see segment.py's CAS module
+# comment for the full structural writeup. Trailing whitespace is MANDATORY
+# (mirroring every other GAAP's own paragraph regex here), since real
+# article markers always carry a real space/nbsp before the body text in
+# every sample seen; requiring "条" specifically (not bare "第<숫자>") is
+# what excludes chapter ("第<숫자>章") and section ("第<숫자>节") headings
+# from being mistaken for paragraph boundaries -- neither ever ends in "条".
+_CAS_NUM = "一二三四五六七八九十百千零两"
+CAS_ARTICLE_RE = re.compile(r"(?m)^第([%s]+)条\s+" % _CAS_NUM)
+
+# CAS 응용指南 (application guidance) and 해석 (interpretations): BOTH use a
+# completely different, article-FREE top-level numbering -- bare
+# "<한자숫자>、" (Chinese numeral + IDEOGRAPHIC COMMA, e.g. "一、", "二、"),
+# with no space after the comma (confirmed distinct from 준칙 본문's own
+# "条 " shape, which DOES carry real whitespace) -- nested "（一）"
+# (parenthesized) and "1." (arabic-dot) sub-items are deliberately NOT
+# separate paragraph boundaries here (no line-start bare numeral to match),
+# so they stay attached to their enclosing "<한자숫자>、" chunk, same
+# coarser-grained-but-faithful tolerance K-IFRS's own chunker already has
+# for prose subheadings between two real paragraph markers. Selected via
+# chunk_pages' `para_pattern` override, never chunk_pages' own gaap-level
+# default (see tools/ingest/run_ingest.py's `ingest_cas`, which picks this
+# per FILE, not per gaap, since 준칙 본문 and 응용指南/해석 are always
+# separate CAS downloads).
+CAS_GUIDANCE_PARA_RE = re.compile(r"(?m)^([%s]+)、" % _CAS_NUM)
 
 _SLUG = {"K-IFRS": "kifrs", "K-GAAP": "kgaap", "US-GAAP": "usgaap", "CAS": "cas", "VAS": "vas"}
 
@@ -186,16 +214,21 @@ def chunk_pages(pages, gaap, standard_no, standard_title, lang, source_url, as_o
 
     `para_pattern` overrides the 본문 region's paragraph regex only (적용지침
     always uses the letter-prefixed/실-prefixed pattern -- there is no legacy
-    caller that ever needed to override that).
+    caller that ever needed to override that; CAS's own `ingest_cas` uses
+    this same override to select 준칙 본문's article numbering vs 응용指南/
+    해석's section numbering per FILE -- see below).
 
     K-GAAP (일반기업회계기준) has a document structure unrelated to K-IFRS's
     (organized by 장/chapter with "<장번호>.<문단번호>" paragraph numbering,
     no IFRS Foundation copyright block at all -- see
     tools/ingest/segment.py's K-GAAP module comment), so it is routed through
     its OWN frontmatter-stripper/section-splitter/paragraph-regex pair below
-    rather than reusing the K-IFRS ones. Every other gaap's behavior (this
-    function's pre-existing K-IFRS/US-GAAP/CAS/VAS path) is completely
-    unchanged.
+    rather than reusing the K-IFRS ones. CAS (中国企业会计准则) is likewise
+    unrelated to either (HTML-sourced, Chinese-numeral "第X条" articles, no
+    within-document tier split at all -- see tools/ingest/segment.py's CAS
+    module comment) and gets its own third branch. Every other gaap's
+    behavior (this function's pre-existing K-IFRS/US-GAAP/VAS path) is
+    completely unchanged.
     """
     full = "\n".join(p.text for p in pages)
     slug = _SLUG[gaap]
@@ -205,6 +238,16 @@ def chunk_pages(pages, gaap, standard_no, standard_title, lang, source_url, as_o
         sections = split_sections_kgaap(kept)
         default_body_pattern = KGAAP_BODY_PARA_RE
         guidance_pattern = KGAAP_GUIDANCE_PARA_RE
+    elif gaap == "CAS":
+        kept, _dropped_info = strip_frontmatter_cas(full)
+        sections = split_sections_cas(kept)
+        default_body_pattern = CAS_ARTICLE_RE
+        # split_sections_cas always leaves 적용지침 empty (see its own
+        # docstring) so this pattern never actually runs against real text
+        # -- kept as CAS_ARTICLE_RE (rather than None) only so the variable
+        # is never unbound; the real 응용指南/해석 section-numbering pattern
+        # is selected per-file via `para_pattern`, not via this slot.
+        guidance_pattern = CAS_ARTICLE_RE
     else:
         kept, _dropped_info = strip_frontmatter(full)
         sections = split_sections(kept)

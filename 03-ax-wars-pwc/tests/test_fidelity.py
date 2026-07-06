@@ -2,7 +2,8 @@ import pytest
 from tools.ingest.extract import Page
 from tools.ingest.chunk import chunk_pages
 from tools.ingest.fidelity import (roundtrip_coverage, detect_mojibake, assert_coverage, FidelityError,
-                                    assert_no_leak, detect_leaks, detect_shadows)
+                                    assert_no_leak, detect_leaks, detect_shadows,
+                                    assert_retained_coverage)
 from gaap_standards_mcp.schema import Record
 
 def test_roundtrip_full_coverage():
@@ -157,3 +158,58 @@ def test_assert_no_leak_does_not_misfire_on_kgaap_clean_records():
             _kgaap_rec("kgaap:13:적용지침:실13.1", "13", "실13.1", "실13.1 진짜 실무지침 문단이다.",
                       tier="적용지침")]
     assert detect_leaks(recs) == []
+
+
+# --- CAS-specific leak signatures ------------------------------------------
+
+def _cas_rec(id, standard_no, para, text, tier="본문"):
+    return Record(id=id, gaap="CAS", standard_no=standard_no, standard_title="测试准则",
+                  paragraph_no=para, heading="", text=text, text_norm=text, lang="zh",
+                  tier=tier, source_url="u", as_of="2006-01-01")
+
+
+def test_assert_no_leak_catches_cas_footer_residue():
+    recs = [_cas_rec("cas:99:본문:二", "99", "二", "二 结尾条文。\n地址：北京市西城区月坛南街14号月新大厦2层")]
+    leaks = detect_leaks(recs)
+    assert len(leaks) == 1
+    assert leaks[0][1] == "cas_footer"
+
+
+def test_assert_no_leak_catches_cas_transmittal_memo_residue():
+    text = "财会〔2020〕1号\n为深入贯彻实施企业会计准则，现予印发，请遵照执行。\n财 政 部\n2020年1月1日"
+    recs = [_cas_rec("cas:해석99:본문:0", "해석99", "0", text)]
+    leaks = detect_leaks(recs)
+    assert len(leaks) == 1
+    assert leaks[0][1] == "cas_transmittal_memo"
+
+
+def test_assert_no_leak_catches_cas_xmu_source_url_row_residue():
+    recs = [_cas_rec("cas:해석99:본문:0", "해석99", "0",
+                     "| 原文网址 | https://www.casc.org.cn/2020/0101/999999.shtml |")]
+    leaks = detect_leaks(recs)
+    assert len(leaks) == 1
+    assert leaks[0][1] == "cas_xmu_source_url_row"
+
+
+def test_assert_no_leak_does_not_misfire_on_clean_cas_records():
+    recs = [_cas_rec("cas:99:본문:一", "99", "一", "第一条 为了规范测试准则的确认、计量，制定本准则。"),
+            _cas_rec("cas:99:적용지침:一", "99", "一",
+                     "一、测试要点一 本准则第一条规定了测试要点一的处理方法。", tier="적용지침")]
+    assert detect_leaks(recs) == []
+
+
+def test_assert_retained_coverage_routes_cas_through_cas_stripper():
+    # Regression guard for the coverage baseline itself: without routing
+    # gaap="CAS" through strip_frontmatter_cas/split_sections_cas (rather
+    # than silently falling through to the K-IFRS-shaped default path),
+    # the casc.org.cn footer/문호 stripped by chunk_pages would still count
+    # against the coverage baseline here, since the K-IFRS stripper's own
+    # anchors never fire on Chinese text at all.
+    from tools.ingest.chunk import chunk_pages
+    from tools.ingest.extract import Page
+    text = ("财会[2006]3号\n第一条 为了规范测试准则的确认、计量，制定本准则。\n"
+            "地址：北京市西城区月坛南街14号月新大厦2层 邮编：100045 联系邮箱：kjzz@casc.org.cn\n")
+    recs = chunk_pages([Page(text, 1, "p1")], "CAS", "99", "测试准则", "zh", "u", "2006-01-01")
+    cov, info = assert_retained_coverage(text, recs, gaap="CAS")
+    assert cov >= 0.995
+    assert info["frontmatter_chars"] > 0

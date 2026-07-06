@@ -310,9 +310,374 @@ SOURCES = {
         ],
     },
     "US-GAAP": {"lang": "en", "format": "html", "base_url": "https://asc.fasb.org", "standards": []},
-    "CAS": {"lang": "zh", "format": "pdf", "base_url": "http://kjs.mof.gov.cn", "standards": []},
+    # CAS (中国企业会计准则 / China ASBE) -- 财政部 회계사 own portal
+    # (kjs.mof.gov.cn / tfs.mof.gov.cn) returns HTTP 502 from every IP this
+    # environment has tried (confirmed 2026-07-06: consistent across repeated
+    # retries with backoff, both the listing page and individual article
+    # pages, on both http and https -- a WAF/geo block, not transient
+    # flakiness; plain www.mof.gov.cn, the non-kjs parent domain, DOES
+    # resolve, but does not itself host the standard texts). Two reachable
+    # alternatives were used instead, both directly confirmed working from
+    # this network:
+    #   "official" = casc.org.cn (中国会计准则委员会 / China Accounting
+    #     Standards Committee -- a sibling official body under 财政部, every
+    #     page footer-attributed "版权所有财政部会计准则委员会" and every
+    #     standard page headed "来源: 会计司"; casc.org.cn even lists
+    #     kjs.mof.gov.cn as its own "友情链接"). Used for all 43 준칙 본문
+    #     (기본준칙 + 42 구체준칙, latest promulgated version each) and for
+    #     7 of the 20 interpretations (4-8, 19, 20) plus 3 more (16-18) via
+    #     an official PDF attachment linked directly off the casc.org.cn
+    #     notice page (hosted on upload-news.esnai.cn, casc's own credited
+    #     tech-support CDN -- requires the "referer" URL below, or the CDN's
+    #     anti-hotlink protection 404s).
+    #   "mirror" = cas.xmu.edu.cn (厦门大学会计发展研究中心 / Xiamen
+    #     University Accounting Development Research Center CAS database --
+    #     the task's own suggested academic-mirror fallback). Used for ALL
+    #     32 응용지침 (application guidance; casc.org.cn has no individual
+    #     guidance pages at all) and for 10 of the 20 interpretations
+    #     (1-3, 9-15; casc.org.cn's own notice for these is a transmittal
+    #     memo pointing at a legacy .doc attachment, not cleanly
+    #     re-extractable with the tools available here).
+    # Enumeration: casc.org.cn's own /qykjzz/ listing (3 pages, 59 rows) was
+    # scraped in full -- every one of the 42 구체준칙 plus 기본준칙 is on it,
+    # several with multiple historical versions (e.g. 21 租赁 has both a 2006
+    # and a 2018 promulgation); the LATEST version is selected per standard
+    # (see as_of). Interpretations 1-20 come from casc.org.cn's own
+    # /qykjzzjs/ listing (20 rows, current as of this scrape -- No.20 was
+    # issued 2026-06-17, i.e. after this repo's own K-GAAP scrape date).
+    # Guidance (응用指南) comes from cas.xmu.edu.cn's own CAS.htm index,
+    # which lists 32 individually-promulgated guidance documents (not all 42
+    # standards have one -- e.g. 15/25/26/29/32/36/39/40/41/42 never got a
+    # separate 应用指南 of their own; nothing trimmed, this is the site's own
+    # complete list).
+    "CAS": {
+        "lang": "zh", "format": "html", "base_url": "https://www.casc.org.cn",
+        "standards": [
+        # -- 기본준칙 + 42 구체준칙 (specific standards) -- casc.org.cn
+        # (中国会计准则委员会/China Accounting Standards Committee, official
+        # body under 财政部; kjs.mof.gov.cn itself 502s from this network).
+        # Latest promulgated version picked per standard (see as_of).
+        {"no": "기본준칙", "title": "基本准则", "url": "https://www.casc.org.cn/2018/0815/202818.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2014-01-01",
+         "provenance": "official"},
+        {"no": "1", "title": "存货", "url": "https://www.casc.org.cn/2018/0815/202816.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2006-01-01",
+         "provenance": "official"},
+        {"no": "2", "title": "长期股权投资", "url": "https://www.casc.org.cn/2018/0815/202815.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2014-01-01",
+         "provenance": "official"},
+        {"no": "3", "title": "投资性房地产", "url": "https://www.casc.org.cn/2018/0815/202813.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2006-01-01",
+         "provenance": "official"},
+        {"no": "4", "title": "固定资产", "url": "https://www.casc.org.cn/2018/0815/202812.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2006-01-01",
+         "provenance": "official"},
+        {"no": "5", "title": "生物资产", "url": "https://www.casc.org.cn/2018/0815/202811.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2006-01-01",
+         "provenance": "official"},
+        {"no": "6", "title": "无形资产", "url": "https://www.casc.org.cn/2018/0815/202810.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2006-01-01",
+         "provenance": "official"},
+        {"no": "7", "title": "非货币性资产交换", "url": "https://www.casc.org.cn/2018/0815/202809.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2019-01-01",
+         "provenance": "official"},
+        {"no": "8", "title": "资产减值", "url": "https://www.casc.org.cn/2018/0815/202807.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2006-01-01",
+         "provenance": "official"},
+        {"no": "9", "title": "职工薪酬", "url": "https://www.casc.org.cn/2018/0815/202806.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2014-01-01",
+         "provenance": "official"},
+        {"no": "10", "title": "企业年金基金", "url": "https://www.casc.org.cn/2018/0815/202804.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2006-01-01",
+         "provenance": "official"},
+        {"no": "11", "title": "股份支付", "url": "https://www.casc.org.cn/2018/0815/202803.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2006-01-01",
+         "provenance": "official"},
+        {"no": "12", "title": "债务重组", "url": "https://www.casc.org.cn/2018/0815/202802.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2019-01-01",
+         "provenance": "official"},
+        {"no": "13", "title": "或有事项", "url": "https://www.casc.org.cn/2018/0815/202800.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2006-01-01",
+         "provenance": "official"},
+        {"no": "14", "title": "收入", "url": "https://www.casc.org.cn/2018/0815/202799.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2017-01-01",
+         "provenance": "official"},
+        {"no": "15", "title": "建造合同", "url": "https://www.casc.org.cn/2018/0815/202797.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2006-01-01",
+         "provenance": "official"},
+        {"no": "16", "title": "政府补助", "url": "https://www.casc.org.cn/2018/0815/202796.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2017-01-01",
+         "provenance": "official"},
+        {"no": "17", "title": "借款费用", "url": "https://www.casc.org.cn/2018/0815/202794.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2006-01-01",
+         "provenance": "official"},
+        {"no": "18", "title": "所得税", "url": "https://www.casc.org.cn/2018/0815/202793.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2006-01-01",
+         "provenance": "official"},
+        {"no": "19", "title": "外币折算", "url": "https://www.casc.org.cn/2018/0815/202792.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2006-01-01",
+         "provenance": "official"},
+        {"no": "20", "title": "企业合并", "url": "https://www.casc.org.cn/2018/0815/202791.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2006-01-01",
+         "provenance": "official"},
+        {"no": "21", "title": "租赁", "url": "https://www.casc.org.cn/2018/0815/202790.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2018-01-01",
+         "provenance": "official"},
+        {"no": "22", "title": "金融工具确认和计量", "url": "https://www.casc.org.cn/2018/0815/202788.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2017-01-01",
+         "provenance": "official"},
+        {"no": "23", "title": "金融资产转移", "url": "https://www.casc.org.cn/2018/0815/202786.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2017-01-01",
+         "provenance": "official"},
+        {"no": "24", "title": "套期会计", "url": "https://www.casc.org.cn/2018/0815/202784.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2017-01-01",
+         "provenance": "official"},
+        {"no": "25", "title": "保险合同", "url": "https://www.casc.org.cn/2018/0815/213104.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2020-01-01",
+         "provenance": "official"},
+        {"no": "26", "title": "再保险合同", "url": "https://www.casc.org.cn/2018/0815/202781.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2006-01-01",
+         "provenance": "official"},
+        {"no": "27", "title": "石油天然气开采", "url": "https://www.casc.org.cn/2018/0815/202780.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2006-01-01",
+         "provenance": "official"},
+        {"no": "28", "title": "会计政策、会计估计变更和差错更正", "url": "https://www.casc.org.cn/2018/0815/202779.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2006-01-01",
+         "provenance": "official"},
+        {"no": "29", "title": "资产负债表日后事项", "url": "https://www.casc.org.cn/2018/0815/202778.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2006-01-01",
+         "provenance": "official"},
+        {"no": "30", "title": "财务报表列报", "url": "https://www.casc.org.cn/2018/0815/202777.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2014-01-01",
+         "provenance": "official"},
+        {"no": "31", "title": "现金流量表", "url": "https://www.casc.org.cn/2018/0814/202775.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2006-01-01",
+         "provenance": "official"},
+        {"no": "32", "title": "中期财务报告", "url": "https://www.casc.org.cn/2018/0814/202774.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2006-01-01",
+         "provenance": "official"},
+        {"no": "33", "title": "合并财务报表", "url": "https://www.casc.org.cn/2018/0814/202773.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2014-01-01",
+         "provenance": "official"},
+        {"no": "34", "title": "每股收益", "url": "https://www.casc.org.cn/2018/0814/202771.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2006-01-01",
+         "provenance": "official"},
+        {"no": "35", "title": "分部报告", "url": "https://www.casc.org.cn/2018/0814/202770.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2006-01-01",
+         "provenance": "official"},
+        {"no": "36", "title": "关联方披露", "url": "https://www.casc.org.cn/2018/0814/202769.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2006-01-01",
+         "provenance": "official"},
+        {"no": "37", "title": "金融工具列报", "url": "https://www.casc.org.cn/2018/0814/202768.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2017-01-01",
+         "provenance": "official"},
+        {"no": "38", "title": "首次执行企业会计准则", "url": "https://www.casc.org.cn/2018/0814/202765.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2006-01-01",
+         "provenance": "official"},
+        {"no": "39", "title": "公允价值计量", "url": "https://www.casc.org.cn/2018/0814/202764.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2014-01-01",
+         "provenance": "official"},
+        {"no": "40", "title": "合营安排", "url": "https://www.casc.org.cn/2018/0814/202763.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2014-01-01",
+         "provenance": "official"},
+        {"no": "41", "title": "在其他主体中权益的披露", "url": "https://www.casc.org.cn/2018/0814/202762.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2014-01-01",
+         "provenance": "official"},
+        {"no": "42", "title": "持有待售的非流动资产、处置组和终止经营", "url": "https://www.casc.org.cn/2018/0814/202761.shtml",
+         "format": "html", "tier_hint": "본문", "as_of": "2017-01-01",
+         "provenance": "official"},
+
+        # -- 응용지침 (application guidance, tier=적용지침) -- Xiamen Univ.
+        # mirror (cas.xmu.edu.cn); casc.org.cn has no individual guidance pages.
+        # standard_no overrides `no` so guidance groups under its parent's number.
+        {"no": "1-지침", "standard_no": "1", "title": "存货",
+         "url": "https://cas.xmu.edu.cn/info/1823/4694.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "2-지침", "standard_no": "2", "title": "长期股权投资",
+         "url": "https://cas.xmu.edu.cn/info/1833/4704.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "3-지침", "standard_no": "3", "title": "投资性房地产",
+         "url": "https://cas.xmu.edu.cn/info/1843/4714.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "4-지침", "standard_no": "4", "title": "固定资产",
+         "url": "https://cas.xmu.edu.cn/info/1853/4724.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "5-지침", "standard_no": "5", "title": "生物资产",
+         "url": "https://cas.xmu.edu.cn/info/1863/4734.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "6-지침", "standard_no": "6", "title": "无形资产",
+         "url": "https://cas.xmu.edu.cn/info/1873/4744.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "7-지침", "standard_no": "7", "title": "非货币性资产交换",
+         "url": "https://cas.xmu.edu.cn/info/1883/4754.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "8-지침", "standard_no": "8", "title": "资产减值",
+         "url": "https://cas.xmu.edu.cn/info/1893/4764.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "9-지침", "standard_no": "9", "title": "职工薪酬",
+         "url": "https://cas.xmu.edu.cn/info/1903/4774.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "10-지침", "standard_no": "10", "title": "企业年金基金",
+         "url": "https://cas.xmu.edu.cn/info/1913/4784.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "11-지침", "standard_no": "11", "title": "股份支付",
+         "url": "https://cas.xmu.edu.cn/info/1923/4794.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "12-지침", "standard_no": "12", "title": "债务重组",
+         "url": "https://cas.xmu.edu.cn/info/1933/4804.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "13-지침", "standard_no": "13", "title": "或有事项",
+         "url": "https://cas.xmu.edu.cn/info/1943/4814.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "14-지침", "standard_no": "14", "title": "收入",
+         "url": "https://cas.xmu.edu.cn/info/1953/4824.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "16-지침", "standard_no": "16", "title": "政府补助",
+         "url": "https://cas.xmu.edu.cn/info/1963/4834.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "17-지침", "standard_no": "17", "title": "借款费用",
+         "url": "https://cas.xmu.edu.cn/info/1973/4844.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "18-지침", "standard_no": "18", "title": "所得税",
+         "url": "https://cas.xmu.edu.cn/info/1983/4854.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "19-지침", "standard_no": "19", "title": "外币折算",
+         "url": "https://cas.xmu.edu.cn/info/1993/4864.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "20-지침", "standard_no": "20", "title": "企业合并",
+         "url": "https://cas.xmu.edu.cn/info/2003/4874.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "21-지침", "standard_no": "21", "title": "租赁",
+         "url": "https://cas.xmu.edu.cn/info/2013/4884.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "22-지침", "standard_no": "22", "title": "金融工具确认和计量",
+         "url": "https://cas.xmu.edu.cn/info/2023/4894.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "23-지침", "standard_no": "23", "title": "金融资产转移",
+         "url": "https://cas.xmu.edu.cn/info/2033/4904.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "24-지침", "standard_no": "24", "title": "套期会计",
+         "url": "https://cas.xmu.edu.cn/info/2043/4914.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "27-지침", "standard_no": "27", "title": "石油天然气开采",
+         "url": "https://cas.xmu.edu.cn/info/2053/4924.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "28-지침", "standard_no": "28", "title": "会计政策、会计估计变更和差错更正",
+         "url": "https://cas.xmu.edu.cn/info/2063/4934.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "30-지침", "standard_no": "30", "title": "财务报表列报",
+         "url": "https://cas.xmu.edu.cn/info/2073/4944.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "31-지침", "standard_no": "31", "title": "现金流量表",
+         "url": "https://cas.xmu.edu.cn/info/2083/4954.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "33-지침", "standard_no": "33", "title": "合并财务报表",
+         "url": "https://cas.xmu.edu.cn/info/2093/4964.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "34-지침", "standard_no": "34", "title": "每股收益",
+         "url": "https://cas.xmu.edu.cn/info/2103/4974.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "35-지침", "standard_no": "35", "title": "分部报告",
+         "url": "https://cas.xmu.edu.cn/info/2113/4984.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "37-지침", "standard_no": "37", "title": "金融工具列报",
+         "url": "https://cas.xmu.edu.cn/info/2123/4994.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+        {"no": "38-지침", "standard_no": "38", "title": "首次执行企业会计准则",
+         "url": "https://cas.xmu.edu.cn/info/2133/5004.htm", "format": "html", "tier_hint": "적용지침",
+         "para_style": "section", "as_of": "2022-08-05", "provenance": "mirror"},
+
+        # -- 준칙해석 (interpretations 1-20, tier=본문) -- standalone standard_no,
+        # same convention K-IFRS uses for its own 해석서 (not nested under a
+        # parent 준칙 number). Mixed provenance -- see per-entry note above each.
+        # mirror: casc.org.cn attachment for this one is a legacy .doc, not cleanly re-extractable
+        {"no": "해석1", "title": "企业会计准则解释第1号", "url": "https://cas.xmu.edu.cn/info/1673/4544.htm",
+         "format": "html", "tier_hint": "본문", "para_style": "section",
+         "as_of": "2007-01-01", "provenance": "mirror"},
+        # mirror: casc.org.cn attachment for this one is a legacy .doc, not cleanly re-extractable
+        {"no": "해석2", "title": "企业会计准则解释第2号", "url": "https://cas.xmu.edu.cn/info/1683/4554.htm",
+         "format": "html", "tier_hint": "본문", "para_style": "section",
+         "as_of": "2008-01-01", "provenance": "mirror"},
+        # mirror: casc.org.cn attachment for this one is a legacy .doc, not cleanly re-extractable
+        {"no": "해석3", "title": "企业会计准则解释第3号", "url": "https://cas.xmu.edu.cn/info/1693/4564.htm",
+         "format": "html", "tier_hint": "본문", "para_style": "section",
+         "as_of": "2009-01-01", "provenance": "mirror"},
+        # official: full text inline on the casc.org.cn notice page itself
+        {"no": "해석4", "title": "企业会计准则解释第4号", "url": "https://www.casc.org.cn/2010/0809/203868.shtml",
+         "format": "html", "tier_hint": "본문", "para_style": "section",
+         "as_of": "2010-01-01", "provenance": "official"},
+        # official: full text inline on the casc.org.cn notice page itself
+        {"no": "해석5", "title": "企业会计准则解释第5号", "url": "https://www.casc.org.cn/2012/1130/203867.shtml",
+         "format": "html", "tier_hint": "본문", "para_style": "section",
+         "as_of": "2012-01-01", "provenance": "official"},
+        # official: full text inline on the casc.org.cn notice page itself
+        {"no": "해석6", "title": "企业会计准则解释第6号", "url": "https://www.casc.org.cn/2014/0124/203866.shtml",
+         "format": "html", "tier_hint": "본문", "para_style": "section",
+         "as_of": "2014-01-01", "provenance": "official"},
+        # official: full text inline on the casc.org.cn notice page itself
+        {"no": "해석7", "title": "企业会计准则解释第7号", "url": "https://www.casc.org.cn/2015/1113/203865.shtml",
+         "format": "html", "tier_hint": "본문", "para_style": "section",
+         "as_of": "2015-01-01", "provenance": "official"},
+        # official: full text inline on the casc.org.cn notice page itself
+        {"no": "해석8", "title": "企业会计准则解释第8号", "url": "https://www.casc.org.cn/2016/0104/203864.shtml",
+         "format": "html", "tier_hint": "본문", "para_style": "section",
+         "as_of": "2016-01-01", "provenance": "official"},
+        # mirror: casc.org.cn attachment for this one is a legacy .doc, not cleanly re-extractable
+        {"no": "해석9", "title": "关于权益法下投资净损失的会计处理", "url": "https://cas.xmu.edu.cn/info/1753/4624.htm",
+         "format": "html", "tier_hint": "본문", "para_style": "section",
+         "as_of": "2017-01-01", "provenance": "mirror"},
+        # mirror: casc.org.cn attachment for this one is a legacy .doc, not cleanly re-extractable
+        {"no": "해석10", "title": "关于以使用固定资产产生的收入为基础的折旧方法", "url": "https://cas.xmu.edu.cn/info/1763/4634.htm",
+         "format": "html", "tier_hint": "본문", "para_style": "section",
+         "as_of": "2017-01-01", "provenance": "mirror"},
+        # mirror: casc.org.cn attachment for this one is a legacy .doc, not cleanly re-extractable
+        {"no": "해석11", "title": "关于以使用无形资产产生的收入为基础的摊销方法", "url": "https://cas.xmu.edu.cn/info/1773/4644.htm",
+         "format": "html", "tier_hint": "본문", "para_style": "section",
+         "as_of": "2017-01-01", "provenance": "mirror"},
+        # mirror: casc.org.cn attachment for this one is a legacy .doc, not cleanly re-extractable
+        {"no": "해석12", "title": "关于关键管理人员服务的提供方与接受方是否为关联方", "url": "https://cas.xmu.edu.cn/info/1783/4654.htm",
+         "format": "html", "tier_hint": "본문", "para_style": "section",
+         "as_of": "2017-01-01", "provenance": "mirror"},
+        # mirror: casc.org.cn attachment for this one is a legacy .doc, not cleanly re-extractable
+        {"no": "해석13", "title": "企业会计准则解释第13号", "url": "https://cas.xmu.edu.cn/info/1793/4664.htm",
+         "format": "html", "tier_hint": "본문", "para_style": "section",
+         "as_of": "2020-01-01", "provenance": "mirror"},
+        # mirror: casc.org.cn attachment for this one is a legacy .doc, not cleanly re-extractable
+        {"no": "해석14", "title": "企业会计准则解释第14号", "url": "https://cas.xmu.edu.cn/info/1803/4674.htm",
+         "format": "html", "tier_hint": "본문", "para_style": "section",
+         "as_of": "2021-01-01", "provenance": "mirror"},
+        # mirror: casc.org.cn attachment for this one is a legacy .doc, not cleanly re-extractable
+        {"no": "해석15", "title": "企业会计准则解释第15号", "url": "https://cas.xmu.edu.cn/info/1813/4684.htm",
+         "format": "html", "tier_hint": "본문", "para_style": "section",
+         "as_of": "2021-01-01", "provenance": "mirror"},
+        # official: PDF attachment linked directly from the casc.org.cn notice (via esnai.cn, casc's tech-support CDN)
+        {"no": "해석16", "title": "企业会计准则解释第16号", "url": "https://upload-news.esnai.cn/2022/1213/1670930283740.pdf",
+         "referer": "https://www.casc.org.cn/2022/1213/236476.shtml",
+         "format": "pdf", "tier_hint": "본문", "para_style": "section",
+         "as_of": "2022-01-01", "provenance": "official"},
+        # official: PDF attachment linked directly from the casc.org.cn notice (via esnai.cn, casc's tech-support CDN)
+        {"no": "해석17", "title": "企业会计准则解释第17号", "url": "https://upload-news.esnai.cn/2023/1109/1699509691161.pdf",
+         "referer": "https://www.casc.org.cn/2023/1109/248252.shtml",
+         "format": "pdf", "tier_hint": "본문", "para_style": "section",
+         "as_of": "2023-01-01", "provenance": "official"},
+        # official: PDF attachment linked directly from the casc.org.cn notice (via esnai.cn, casc's tech-support CDN)
+        {"no": "해석18", "title": "企业会计准则解释第18号", "url": "https://upload-news.esnai.cn/2024/1231/1735613819864.pdf",
+         "referer": "https://www.casc.org.cn/2024/1231/266612.shtml",
+         "format": "pdf", "tier_hint": "본문", "para_style": "section",
+         "as_of": "2024-01-01", "provenance": "official"},
+        # official: full text inline on the casc.org.cn notice page itself
+        {"no": "해석19", "title": "企业会计准则解释第19号", "url": "https://www.casc.org.cn/2025/1219/278496.shtml",
+         "format": "html", "tier_hint": "본문", "para_style": "section",
+         "as_of": "2025-01-01", "provenance": "official"},
+        # official: full text inline on the casc.org.cn notice page itself
+        {"no": "해석20", "title": "企业会计准则解释第20号", "url": "https://www.casc.org.cn/2026/0617/283026.shtml",
+         "format": "html", "tier_hint": "본문", "para_style": "section",
+         "as_of": "2026-01-01", "provenance": "official"},
+        ],
+    },
     "VAS": {"lang": "vi", "format": "pdf", "base_url": "", "standards": []},
 }
+
 
 def get_source(gaap):
     return SOURCES[gaap]
@@ -328,6 +693,27 @@ def download_kasb(file_no, file_seq, dest):
     import requests  # local import: keep `requests` off the hot import path
     resp = requests.post(KASB_DOWNLOAD_URL, data={"fileNo": file_no, "fileSeq": file_seq},
                          timeout=30)
+    resp.raise_for_status()
+    with open(dest, "wb") as f:
+        f.write(resp.content)
+    return dest
+
+def download_cas_url(url, dest, referer=None):
+    """Plain GET-download a single CAS source document (casc.org.cn or
+    cas.xmu.edu.cn page, or an esnai.cn PDF attachment) to `dest`. Unlike
+    KASB, both CAS sources serve every document off an ordinary GET URL --
+    no form-POST handler -- so this is a much smaller helper than
+    download_kasb. `referer` must be supplied for esnai.cn PDF attachments
+    specifically: that CDN 404s on a bare GET with no Referer header
+    (anti-hotlink protection) -- every CAS registry entry that needs one
+    carries its own "referer" key (the casc.org.cn notice page that links to
+    the attachment). Not called during normal test/ingest runs, same
+    on-demand-fetching role as download_kasb."""
+    import requests  # local import: keep `requests` off the hot import path
+    headers = {"User-Agent": "Mozilla/5.0"}
+    if referer:
+        headers["Referer"] = referer
+    resp = requests.get(url, headers=headers, timeout=30)
     resp.raise_for_status()
     with open(dest, "wb") as f:
         f.write(resp.content)
