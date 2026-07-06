@@ -338,6 +338,7 @@ $("start").addEventListener("click", async ()=>{
   try{
     conv=await Conversation.startSession({
       signedUrl:SIGNED_URL,
+      connectionType:"websocket",
       dynamicVariables:{ role:currentRole, role_label:R.label, opener:R.opener },
       onConnect:()=>{ connected=true; $("start").disabled=false; $("start").textContent="인터뷰 종료";
         $("start").classList.add("end"); $("liveTag").textContent="● live"; $("main").classList.add("started");

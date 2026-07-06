@@ -19,6 +19,7 @@
 
 ```
 [고객 현업]  ──ElevenLabs 음성 링크/CLI──▶  intake
+                                             ├ 페이지에서 역할 선택(모달) → 역할별 카피·오프너 (dynamic variable)
                                              ├ grill-me 인터뷰(4롤×3축): 페인을 대놓고 묻지 않고 일화로 유도
                                              └ transcript → deployment-discovery.json (validate 게이트)
                                                      │

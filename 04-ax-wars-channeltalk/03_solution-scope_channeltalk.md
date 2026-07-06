@@ -46,7 +46,7 @@
 ## 5. 스킬 1 — intake (인터뷰 → discovery 계약)
 
 - **실행 경로 2개**(scout 계승): 브라우저(signed URL, WebRTC 에코제거, 끼어들기) = 데모용 / 로컬 CLI(마이크, `--text-only`).
-- **인터뷰어 = 고정 질문지가 아니라 목표 주도**: `deployment-discovery.json`의 빈칸(슬롯)을 grill-me로 채운다. 시작 시 **"인터뷰 대상 롤 + 회사 규모"**를 물어 해당 롤의 축 강조·오프너를 로드.
+- **인터뷰어 = 고정 질문지가 아니라 목표 주도**: `deployment-discovery.json`의 빈칸(슬롯)을 grill-me로 채운다. **인터뷰 페이지에서 역할을 먼저 선택**(진입 시 어두운 배경 모달, 이후 헤더 칩으로 변경) → 선택 역할을 ElevenLabs **dynamic variable**(`role`/`role_label`/`opener`)로 전달해 **역할별 오프너·카피·흐름**으로 진행. 페이지 카피는 인터뷰 당사자에게 말 거는 톤. 연결은 `connectionType:"websocket"`(어느 환경에서든 안정 연결, 브라우저 getUserMedia가 에코 제거).
 - 산출: `output/transcript.jsonl` + `output/deployment-discovery.json`(validate 게이트 통과).
 - 프롬프트 SSOT: `prompt/interviewer-system-prompt.md`(9장 스크립트 그대로 반영).
 
@@ -160,6 +160,7 @@ scout `criteria-spec.md` 패턴을 따르되 스키마는 배포 discovery용. `
 - **채팅 버블 transcript**: 상대(AI)=좌측 `#F7F7F8` / 나=우측 `#6157EA` 흰 글씨.
 - **음성 오브**: 알약형 런처 모티브, 브랜드색, 듣는 중 파형/점 애니메이션.
 - **로고**: `channel.io/logo.webp`로 BCG 로고 대체(빌드 시 로컬 저장).
+- **역할 선택 모달**: 진입 시 배경이 어두워지며 4개 역할 카드(CS·상담 리더 / 대표·임원 / 현장 상담사 / 개발·IT 담당) 제시 → 선택 시 히어로 카피(eyebrow·서브)가 역할별로 전환, 헤더에 "역할 · ○○ 변경" 칩. 카피는 인터뷰 당사자에게 말 거는 2인칭 톤.
 - **톤**: Bold & Wit(대담한 단순 + 친근한 말풍선/미소).
 - 파일: `assets/talk_template.html`(scout 것 리스타일), `assets/channel-logo.*`, `assets/pretendard.*`.
 
