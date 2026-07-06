@@ -1,0 +1,21 @@
+# scout 원본 zip (내부에 실제 .env 키 포함 — public 리포에 절대 커밋 금지)
+scout-plugin-v1.0.0.zip
+_scout_src/
+
+# 비밀
+.env
+**/.env
+.env.local
+
+# 빌드 스크래치 / 런타임
+.venv/
+_samples/
+**/output/transcript.jsonl
+**/output/interview-notes.md
+**/output/deployment-discovery.json
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# OS
+.DS_Store
