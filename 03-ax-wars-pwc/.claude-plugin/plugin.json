@@ -1,0 +1,7 @@
+{
+  "name": "pwc-gaap-ifrs-suite",
+  "version": "0.2.0",
+  "description": "삼일PwC GAAP→IFRS 스위트: (트랙1) 시산표 K-IFRS 변환 엔진 + (트랙2) 회계기준 원문 grounded RAG 챗봇(로컬 MCP 하이브리드 검색). 원문 인용으로 할루시네이션 없이 답한다.",
+  "author": {"name": "AX 인재전쟁 · 삼일PwC 세션"},
+  "keywords": ["IFRS","K-IFRS","GAAP전환","회계기준","RAG","MCP","원문검색","삼일PwC"]
+}
