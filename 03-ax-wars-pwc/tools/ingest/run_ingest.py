@@ -2,7 +2,7 @@ import argparse, os
 from .sources import get_source
 from .extract import extract
 from .chunk import chunk_pages
-from .fidelity import assert_coverage
+from .fidelity import assert_retained_coverage
 from .pack import pack
 
 def ingest_gaap(gaap, download_dir):
@@ -14,8 +14,17 @@ def ingest_gaap(gaap, download_dir):
             continue
         pages = extract(path, src["format"])
         recs = chunk_pages(pages, gaap, std["no"], std["title"], src["lang"],
-                           std["url"], std.get("as_of", ""), tier=std.get("tier_hint", "본문"))
-        assert_coverage("\n".join(p.text for p in pages), recs)
+                           std.get("url", ""), std.get("as_of", ""), tier=std.get("tier_hint", "본문"))
+        # Coverage is measured over the RETAINED region (본문+적용지침) only:
+        # 결론도출근거/적용사례/frontmatter are intentionally dropped (corpus
+        # depth = body + application guidance), so checking against the FULL
+        # raw extraction would fail correct output. Dropped byte counts are
+        # returned in info for logging rather than silently discarded.
+        _cov, info = assert_retained_coverage("\n".join(p.text for p in pages), recs)
+        print(f"  {gaap} {std['no']}: retained={info['retained_chars']} "
+              f"dropped={info['dropped_chars']} of {info['total_chars']} chars "
+              f"(frontmatter={info['frontmatter_chars']}, "
+              f"결론도출근거={info['결론도출근거_chars']}, 적용사례={info['적용사례_chars']})")
         records += recs
     return records
 
