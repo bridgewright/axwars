@@ -19,7 +19,8 @@
 {
   "meta": {
     "customer": "가상몰",                    // 필수, 비어있으면 안 됨
-    "interviewee_role": "cs_lead",           // 필수. enum: cs_lead|exec|agent|it
+    "interviewee_role": "cs_lead",           // 필수. enum: cs_lead|exec|agent|it|multi (여러 그룹을 하나로 통합하면 multi)
+    "interviewees": [{ "role": "cs_lead", "who": "CS팀장" }],  // 선택. 여러 명/그룹 인터뷰 시 명단(보고서 헤더에 표기)
     "company_size": "enterprise",            // 필수. smb|enterprise
     "created_at": "2026-07-06",              // 필수 YYYY-MM-DD
     "created_by": "intake voice interview",  // 필수
@@ -56,9 +57,19 @@
   "product_gaps": [                          // 보고서② 8항 — 간접 surface
     { "signal": "실제 처리(취소)까지 원함", "quote": "취소까지 알아서 됐으면", "tag": "action_task" }
   ],
-  "open_questions": ["주문 시스템 API 제공 여부 확인 필요"]  // 배포 전 미해결(사전 단서)
+  "open_questions": ["주문 시스템 API 제공 여부 확인 필요"],  // 배포 전 미해결(사전 단서)
+  "synthesis": {                             // 두괄식 보고서용 종합 — intake가 인터뷰를 요약해 채운다(보고서가 맨 앞에 세움)
+    "deployment_headline": "무엇을 어떻게 배포할지 한 줄 권고(BLUF)",
+    "deployment_rationale": "왜(2~3문장, 현장 근거)",
+    "readiness": "green|yellow|red — 한 줄 진단",
+    "top_risks": ["먼저 볼 리스크", "..."],
+    "product_headline": "본진 프로덕트팀에 전할 한 줄 제언(BLUF)",
+    "product_rationale": "왜(핵심 근거)"
+  }
 }
 ```
+
+> **두괄식 보고서**: 두 보고서 모두 `synthesis`의 headline·rationale를 **맨 앞 '결론 먼저(권고/제언)'**로 세우고, 이어서 `bottlenecks`·`product_gaps`의 **인용**으로 뒷받침한다. `synthesis`가 없으면 렌더러가 데이터에서 보수적으로 유도하지만 설득력이 약해지므로 채우는 것을 권장(검증에서 WARNING).
 
 ## 3. 검증 규칙 (`validate_discovery.py`)
 

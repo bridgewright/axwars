@@ -12,7 +12,7 @@ TOP_KEYS = [
     "meta", "context", "bottlenecks", "automation_scope", "integration",
     "knowledge_readiness", "org_change", "metrics", "product_gaps", "open_questions",
 ]
-ROLES = {"cs_lead", "exec", "agent", "it"}
+ROLES = {"cs_lead", "exec", "agent", "it", "multi"}
 TIERS = {"no_integration", "workflow", "system_task"}
 TAGS = {
     "action_task", "reask_context", "knowledge_authoring", "voc_distribution",
@@ -50,6 +50,9 @@ def validate(data):
         warnings.append("context.inquiry_types empty — 자동화 스코프 산정 불가")
     if not data.get("bottlenecks"):
         warnings.append("bottlenecks empty — 인터뷰 보강 권장")
+    syn = data.get("synthesis") or {}
+    if not syn.get("deployment_headline") or not syn.get("product_headline"):
+        warnings.append("synthesis.deployment_headline/product_headline 없음 — 보고서 두괄식 요약이 약해짐(권고: 채울 것)")
 
     return (errors, warnings)
 
