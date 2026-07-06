@@ -1,15 +1,32 @@
 import argparse, os
 from .sources import get_source
 from .extract import extract
-from .chunk import chunk_pages
+from .chunk import chunk_pages, _SLUG
 from .fidelity import assert_retained_coverage, assert_no_leak, detect_shadows
 from .pack import pack
+
+def download_path(download_dir, gaap, standard_no, fmt):
+    """Resolve the on-disk path for one registry standard's download.
+
+    BUG (fixed here): this used to build `f"{gaap}_{std['no']}.{fmt}"`, e.g.
+    "K-IFRS_1001.pdf" -- but downloaded files are saved under the same
+    lowercase GAAP slug chunk.py/pack.py already use for record ids (e.g.
+    "K-IFRS" -> "kifrs"), never under the registry's own display key. The
+    real file is "kifrs_1001.pdf", so the old path never existed on disk and
+    a real run silently found 0 files. Reusing chunk.py's `_SLUG` (rather
+    than a third copy of the same mapping) keeps this in sync with however
+    that convention is defined elsewhere. Confirmed this resolves all 63
+    K-IFRS registry entries against downloads/ with 0 missing, including the
+    3 non-numbered items (e.g. "kifrs_개념체계.pdf") whose `no` is a
+    descriptive slug instead of a 제NNNN호 number.
+    """
+    return os.path.join(download_dir, f"{_SLUG[gaap]}_{standard_no}.{fmt}")
 
 def ingest_gaap(gaap, download_dir):
     src = get_source(gaap)
     records = []
     for std in src["standards"]:
-        path = os.path.join(download_dir, f"{gaap}_{std['no']}.{src['format']}")
+        path = download_path(download_dir, gaap, std["no"], src["format"])
         if not os.path.exists(path):
             continue
         pages = extract(path, src["format"])
