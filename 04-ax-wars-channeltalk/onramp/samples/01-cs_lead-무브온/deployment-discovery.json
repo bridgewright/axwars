@@ -1,0 +1,51 @@
+{
+  "meta": {
+    "customer": "무브온 (패션 이커머스)",
+    "interviewee_role": "cs_lead",
+    "company_size": "enterprise",
+    "created_at": "2026-07-06",
+    "created_by": "intake voice interview (샘플)",
+    "source_transcript": "samples/01-cs_lead-무브온/transcript.md"
+  },
+  "context": {
+    "team_size": "5명",
+    "daily_volume": "평시 약 400건, 피크 2,000건+",
+    "channels": ["채팅", "이메일"],
+    "inquiry_types": [
+      { "type": "배송조회", "share_pct": 35, "repetitive": true },
+      { "type": "교환/반품", "share_pct": 25, "repetitive": true },
+      { "type": "사이즈/상품문의", "share_pct": 15, "repetitive": false },
+      { "type": "재입고문의", "share_pct": 15, "repetitive": true },
+      { "type": "주문취소", "share_pct": 10, "repetitive": true }
+    ]
+  },
+  "bottlenecks": [
+    { "scene": "어제 교환 요청 한 건에 상담사가 주문 상태 조회·재고 확인·회수 접수까지 하느라 시간이 오래 걸렸다", "frequency": "상시, 프로모션 때 급증", "why_unsolved": "주문 상태·재고를 어드민에서 일일이 확인해야 해 답변만으로 처리가 안 됨", "desired": "교환·반품 접수를 알프가 실제로 처리" },
+    { "scene": "재입고 문의에 하루 수십 번 같은 답을 복사해서 붙인다", "frequency": "상시", "why_unsolved": "FAQ가 단어 위주라 알프가 잘 잡지 못함", "desired": "재입고 안내를 알프가 단독 처리" }
+  ],
+  "automation_scope": [
+    { "task": "배송조회", "current_handling": "택배사 사이트 수기 조회", "fit": "high", "priority": 1 },
+    { "task": "재입고문의", "current_handling": "매크로 복붙", "fit": "high", "priority": 2 },
+    { "task": "주문취소", "current_handling": "어드민에서 상담사가 취소", "fit": "mid", "priority": 3 },
+    { "task": "교환/반품 접수", "current_handling": "어드민 확인 후 상담사 처리", "fit": "mid", "priority": 4 }
+  ],
+  "integration": [
+    { "task": "배송조회", "backend_system": "택배사 조회", "separate_or_integrated": "separate", "has_api": "yes", "built": "vendor", "dev_effort": "낮음(기성 함수)", "tier": "workflow" },
+    { "task": "재입고문의", "backend_system": "없음(FAQ로 충분)", "separate_or_integrated": "n/a", "has_api": "n/a", "built": "n/a", "dev_effort": "없음", "tier": "no_integration" },
+    { "task": "주문취소", "backend_system": "자체 주문 어드민", "separate_or_integrated": "integrated", "has_api": "unknown", "built": "inhouse", "dev_effort": "미정(개발팀 확인 필요)", "tier": "system_task" },
+    { "task": "교환/반품 접수", "backend_system": "자체 주문 어드민 + 외주 WMS", "separate_or_integrated": "separate", "has_api": "unknown", "built": "vendor", "dev_effort": "외주 WMS 대응 필요(기간 미정)", "tier": "system_task" }
+  ],
+  "knowledge_readiness": { "faq_count_est": 50, "doc_scope": "교환·반품 정책 등 8건", "quality_gap": "FAQ가 단어형 → 문장형 전환 필요", "authoring_effort": "약 3시간 + 테스트" },
+  "org_change": { "agent_role_shift": "단순 응대 → 상품정보 세팅·반품 사유 VoC 분석·품질 체크", "change_mgmt_risk": "낮음 (리더가 역할 전환에 우호적)" },
+  "metrics": { "goals": ["프로모션 피크 문의 적체 해소", "재인입률 하락", "응답시간 단축"], "success_definition": "자동해결률 절대치보다 재인입률·CSAT를 함께 본다", "resolution_trap_aware": true, "impact_link": "재구매율 및 CS 인력 추가채용 억제" },
+  "product_gaps": [
+    { "signal": "교환·반품을 답변만이 아니라 실제 접수·처리까지 원함", "quote": "교환·반품을 알프가 실제로 접수까지 해줬으면 좋겠어요", "tag": "action_task" },
+    { "signal": "FAQ 문장형 전환이 수작업이라 부담", "quote": "FAQ가 단어 위주라 알프가 잘 못 잡더라고요", "tag": "knowledge_authoring" },
+    { "signal": "반품 사유 데이터를 기획팀에 넘기고 싶음", "quote": "반품 사유를 모아서 기획팀에 넘기는 일을 하면 좋겠어요", "tag": "voc_distribution" }
+  ],
+  "open_questions": [
+    "자체 주문 어드민이 외부 API를 제공하는지 (개발팀 확인)",
+    "외주 WMS 연동에 대응 개발이 얼마나 걸리는지",
+    "피크 프로모션 일정과 배포 완료 목표일 정합성"
+  ]
+}

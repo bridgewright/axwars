@@ -1,0 +1,43 @@
+{
+  "meta": {
+    "customer": "핀리 (구독 핀테크)",
+    "interviewee_role": "it",
+    "company_size": "enterprise",
+    "created_at": "2026-07-06",
+    "created_by": "intake voice interview (샘플)",
+    "source_transcript": "samples/04-it-핀리/transcript.md"
+  },
+  "context": {
+    "team_size": "미확인 (CS팀 별도)",
+    "daily_volume": "미확인",
+    "channels": ["채팅"],
+    "inquiry_types": [
+      { "type": "구독 취소", "share_pct": 0, "repetitive": true },
+      { "type": "환불", "share_pct": 0, "repetitive": true },
+      { "type": "결제 실패", "share_pct": 0, "repetitive": true }
+    ]
+  },
+  "bottlenecks": [
+    { "scene": "구독 취소·환불·결제실패 문의가 많다고 전해 들음(정확한 규모는 CS팀 소관)", "frequency": "미확인", "why_unsolved": "환불은 PG 규격·보안이 얽혀 자동화가 어려움", "desired": "구독 조회·취소는 내부 API로 자동, 환불은 단계적" }
+  ],
+  "automation_scope": [
+    { "task": "구독 조회/취소", "current_handling": "상담사가 어드민 처리", "fit": "high", "priority": 1 },
+    { "task": "환불", "current_handling": "상담사가 PG 통해 처리", "fit": "low", "priority": 2 }
+  ],
+  "integration": [
+    { "task": "구독 조회/취소", "backend_system": "자체 회원·구독 백엔드", "separate_or_integrated": "integrated", "has_api": "yes", "built": "inhouse", "dev_effort": "낮음(내부 API 엔드포인트 오픈)", "tier": "system_task" },
+    { "task": "환불(금액 계산 포함)", "backend_system": "외부 PG", "separate_or_integrated": "separate", "has_api": "yes", "built": "vendor", "dev_effort": "높음(PG 규격 대응 + 검토 2~3주)", "tier": "system_task" }
+  ],
+  "knowledge_readiness": { "faq_count_est": 0, "doc_scope": "미확인 (IT 관점, CS 지식은 별도)", "quality_gap": "미확인", "authoring_effort": "unknown" },
+  "org_change": { "agent_role_shift": "미확인 (CS팀 소관)", "change_mgmt_risk": "unknown" },
+  "metrics": { "goals": ["구독 취소·결제 실패 문의 자동 처리"], "success_definition": "미확인 (지표는 CS·경영진 인터뷰 필요)", "resolution_trap_aware": false, "impact_link": "unknown" },
+  "product_gaps": [
+    { "signal": "구독 취소 같은 실제 처리를 내부 API로 연동해 자동화하고 싶음", "quote": "구독 조회랑 취소는 저희 내부 API에 엔드포인트를 열어드리면 돼요", "tag": "action_task" },
+    { "signal": "결제정보 원문 전달 불가, 최소 필드 토큰화·접근권한·로그 필요", "quote": "채널톡에 결제정보 원문이 넘어가면 안 되고, 최소한의 필드만 토큰화해서 주고받아야 해요", "tag": "handoff_quality" }
+  ],
+  "open_questions": [
+    "환불 금액 계산 자동화 시 PG 연동 범위·기간(2~3주 검토) 확정",
+    "결제/개인정보 보안 요건(토큰화·권한·로그)에 대한 채널톡 측 지원 범위",
+    "상담량·문의 유형 비중·성공 지표 — CS팀/경영진 인터뷰 필요"
+  ]
+}
