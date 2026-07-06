@@ -354,6 +354,48 @@ _BC_DIVIDER_RE = re.compile(r"(?m)^결론도출근거\s*$")
 # wrap, same as every other anchor in this module.
 _BOARD_RESOLUTION_RE = re.compile(r"(?m)^.{0,80}?" + _loose("회계기준위원회의") + r"[ \t\n]*" + _loose("의결"))
 
+# 개념체계 (and, generalized, any future document sharing its structure)
+# repeats a per-CHAPTER mini table-of-contents at the start of every "제N장"
+# (Chapter N) heading throughout its real body -- confirmed at all 8 real
+# chapter transitions in 개념체계's own 본문 (and, a second time, in its own
+# 결론도출근거, which mirrors the same 8-chapter structure -- but that whole
+# section is already dropped wholesale via _BC_DIVIDER_RE, so those
+# occurrences never reach a kept region regardless). Each block opens with
+# the exact same "목\n차"/"목차" heading the document-level frontmatter TOC
+# uses (see _KICHA_RE's neighbourhood and the module docstring), followed by
+# the chapter title and a heading-preview list, and reliably closes with a
+# "문단번호" ("paragraph number[s]") column label right before the bare
+# paragraph-number preview list (itself already cleaned up separately by
+# fidelity.detect_shadows, since each previewed number collides with -- and
+# is dwarfed by -- the real, later paragraph of the same number). Left
+# unstripped, this glues onto the TAIL of whatever real paragraph happens to
+# immediately precede the next chapter (confirmed: 개념체계 본문 paragraph
+# 1.23's captured text correctly starts with 1.23's own real prose, then
+# also swallows the whole of 제2장's mini-TOC preview up to "문단번호") -- no
+# real paragraph is ever entirely lost to this (unlike the original
+# unbounded-search bug), only contaminated at the tail with preview junk.
+# Bounded the same way as every other anchor in this module: a miss just
+# leaves the preview text in place (gate-catchable via
+# fidelity.assert_no_leak's toc_heading signature), never an unbounded reach
+# into unrelated real content. 1200 chars comfortably covers every real span
+# measured across all 63 standards (documents with no such block --
+# every 기준서/해석서, both 번역서 -- have no "목차" at all in their kept
+# body text, so this is a no-op for them; max legitimate span measured in
+# 개념체계 itself, across both its 본문 and its own dropped 결론도출근거, is
+# 477 chars).
+_CHAPTER_TOC_RE = re.compile(
+    _loose("목") + r"[ \t\n]*" + _loose("차") + r"[\s\S]{0,1200}?" + _loose("문단번호")
+)
+
+
+def _strip_chapter_toc_previews(text):
+    """Remove every per-chapter mini-TOC block (see _CHAPTER_TOC_RE) from
+    already-frontmatter-stripped text. Safe to run unconditionally on every
+    document: one with no such block simply has no match, so this is a
+    no-op."""
+    return _CHAPTER_TOC_RE.sub("", text)
+
+
 SECTION_KEYS = ("본문", "적용지침", "결론도출근거", "적용사례")
 
 
@@ -376,8 +418,13 @@ def split_sections(text):
     authority for itself (confirmed so far only in 1007's 부록 B -- see
     _find_appendix_heads) is routed into 적용사례 for the same reason: it must
     never be left attached to (or mistaken for) the real, authoritative
-    적용지침 region either.
+    적용지침 region either. Per-chapter mini-TOC previews (see
+    _strip_chapter_toc_previews -- so far confirmed only in 개념체계) are
+    stripped first, before any of the above boundary detection runs, since
+    they are front-matter-shaped noise wherever in the document they recur
+    and must never survive into a kept region either.
     """
+    text = _strip_chapter_toc_previews(text)
     authoritative_appendix, disclaimed_appendix = _find_appendix_heads(text)
     marks = [(pos, "적용지침") for pos in authoritative_appendix]
     marks += [(pos, "적용사례") for pos in disclaimed_appendix]

@@ -2,7 +2,7 @@ import argparse, os
 from .sources import get_source
 from .extract import extract
 from .chunk import chunk_pages
-from .fidelity import assert_retained_coverage
+from .fidelity import assert_retained_coverage, assert_no_leak, detect_shadows
 from .pack import pack
 
 def ingest_gaap(gaap, download_dir):
@@ -21,10 +21,21 @@ def ingest_gaap(gaap, download_dir):
         # raw extraction would fail correct output. Dropped byte counts are
         # returned in info for logging rather than silently discarded.
         _cov, info = assert_retained_coverage("\n".join(p.text for p in pages), recs)
+        # Shadow cleanup BEFORE the leak gate: a TOC-derived short fragment
+        # shadowing a real longer paragraph (see fidelity.detect_shadows) is
+        # noise to prune, not itself a leak signature -- pruning first means
+        # the leak gate only ever has to judge genuine records.
+        recs, shadow_removed = detect_shadows(recs)
+        # HARD gate: raises FidelityError (halting ingestion for this GAAP)
+        # if any retained record still carries a BC/IE/board-resolution/TOC/
+        # copyright-boilerplate signature. Deliberately fail-fast rather than
+        # silently packing bad data -- see tools/ingest/fidelity.py.
+        assert_no_leak(recs)
         print(f"  {gaap} {std['no']}: retained={info['retained_chars']} "
               f"dropped={info['dropped_chars']} of {info['total_chars']} chars "
               f"(frontmatter={info['frontmatter_chars']}, "
-              f"결론도출근거={info['결론도출근거_chars']}, 적용사례={info['적용사례_chars']})")
+              f"결론도출근거={info['결론도출근거_chars']}, 적용사례={info['적용사례_chars']}, "
+              f"shadows_removed={shadow_removed})")
         records += recs
     return records
 
