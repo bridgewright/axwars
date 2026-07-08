@@ -35,7 +35,7 @@ uv run python skills/intake/scripts/run_interview.py   # 로컬 CLI(마이크)
 > `.env`·`output/`(실제 대화록)은 gitignore. 마이크·네트워크 때문에 sandbox 밖에서 실행.
 
 ## 다음 단계
-transcript → `output/deployment-discovery.json` 조립 → `python3 scripts/validate_discovery.py` 게이트 → **brief**가 두 보고서(배포 계획서는 에이전트 집필, 본진 PRD 제언서는 렌더) 생성.
+transcript → `output/deployment-discovery.json` 조립 → `python3 scripts/validate_discovery.py` 게이트 → **brief**가 두 문서(배포 계획서, 제품 인풋)를 에이전트가 각 포맷 레퍼런스대로 집필.
 
 ## 구성
 | 파일 | 역할 |

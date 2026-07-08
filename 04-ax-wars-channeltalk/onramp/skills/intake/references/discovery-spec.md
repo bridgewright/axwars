@@ -2,9 +2,9 @@
 
 > 음성 인터뷰 transcript에서 도출한 **채널톡 배포 discovery의 구조화 진실 = `deployment-discovery.json`**.
 > `scripts/validate_discovery.py`가 이 스펙을 강제한다. 다운스트림 `brief` 스킬은 이 discovery로
-> `deployment-brief.md`(배포 계획서 — 에이전트가 `deployment-brief-format.md`대로 직접 집필)와
-> `product-input.prd.md`(본진 페인+PRD 제언서 — `brief/scripts/build_reports.py`가 렌더)를 만든다.
-> 필드명·규칙을 바꾸려면 **여기부터** 고친다(SKILL·validator·renderer·테스트가 이 파일을 단일 출처로 따른다).
+> `deployment-brief.md`(배포 계획서, 고객 C레벨용)와 `product-input.md`(본진 프로덕트팀용 — 고객 페인·니즈 + 제품 개발 시 고려사항)를
+> 에이전트가 각 포맷 레퍼런스(`deployment-brief-format.md`, `product-input-format.md`)대로 직접 집필한다.
+> 필드명·규칙을 바꾸려면 **여기부터** 고친다(SKILL·validator·집필이 이 파일을 단일 출처로 따른다).
 
 ---
 
@@ -76,8 +76,9 @@
     "resolution_trap_aware": true,           // 해결률 절대치 함정 인지 여부
     "impact_link": "재구매율"
   },
-  "product_gaps": [                          // 보고서② 8항 — 간접 surface
-    { "signal": "실제 처리(취소)까지 원함", "quote": "취소까지 알아서 됐으면", "tag": "action_task" }
+  "product_gaps": [                          // 제품 인풋 문서용 — 고객 페인·니즈 신호(간접 surface)
+    { "signal": "실제 처리(취소)까지 원함", "quote": "취소까지 알아서 됐으면", "tag": "action_task",
+      "product_surface": "알프 태스크" }     // 선택. 어느 제품 표면에 걸리나(product-input-format.md C절)
   ],
   "open_questions": ["주문 시스템 API 제공 여부 확인 필요"],  // 배포 전 미해결(사전 단서)
   "synthesis": {                             // 두괄식 보고서용 종합 — intake가 인터뷰를 요약해 채운다(보고서가 맨 앞에 세움)

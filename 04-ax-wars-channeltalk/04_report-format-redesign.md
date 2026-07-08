@@ -48,6 +48,16 @@
 - `samples/무브온/deployment-brief.md` — 새 포맷 exemplar 손집필.
 - plugin.json / README / handoff-contract 내 `handoff`→`brief` 참조 갱신.
 
-## 이번 턴 out of scope
+## 후속: product-input 재포지셔닝 (확정·구현 2026-07-08)
 
-- `product-input.prd.md` 포맷 전면 개편(다음 턴에 동일 원칙 적용). 이번엔 기존 렌더러로 계속 생성.
+**결정**: "PRD" 개념을 폐기하고, 두 번째 산출물을 본진 프로덕트팀용 **"고객 페인/니즈 + 제품 개발 시 고려사항" 문서**로 재포지셔닝.
+
+- **누가·왜**: 받는 사람은 알프 로드맵 오너. 배포 현장 학습을 본진 로드맵 인풋으로 환류(02 가설). 배포 담당자는 제품을 처방하지 않고, 고객 페인/니즈와 만들 때의 고려사항을 올린다. 태그로 배포건끼리 집계 가능.
+- **변경**:
+  - `product-input.prd.md` → `product-input.md` (PRD 접미사·개념 제거).
+  - 렌더 방식: 결정론 `render_prd` 은퇴 → LLM 저작(배포 계획서와 동일). `build_reports.py`, `test_reports.py` 삭제.
+  - 신규 `skills/brief/references/product-input-format.md` — 작성 원칙 공유 + 5섹션(한눈에 / 고객 페인·니즈 지도 / 페인·니즈별 상세 / 관통 고려사항 / 확인·추적) + 제품 표면 어휘·태그 매핑.
+  - 스키마: `product_gaps[]`에 `product_surface` 추가(어느 제품 표면에 걸리나).
+  - 무브온 `product-input.md` 새 포맷 exemplar 손집필.
+  - 플러그인 내 "PRD/제언서" 표현 정리(README, plugin.json, handoff-contract, discovery-spec, SKILL).
+- **작성 원칙**: 배포 계획서와 100% 공유(두괄식, 명사형, 각주·가운데점 금지, [라벨] 불렛, 짧은 문장).

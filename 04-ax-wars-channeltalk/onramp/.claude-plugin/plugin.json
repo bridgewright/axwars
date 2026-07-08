@@ -2,7 +2,7 @@
   "name": "onramp",
   "version": "1.0.0",
   "displayName": "Onramp",
-  "description": "Onramp — 채널톡 엔터프라이즈 배포 discovery 번들. 고객 현업을 음성으로 인터뷰해 배포 결정에 필요한 정보를 끌어내고(intake), 그 결과로 '배포 계획서'(C레벨 보고서로 에이전트가 집필)와 '본진 프로덕트팀용 페인+PRD 제언서'를 생성한다(brief). 흐름: ① intake(인터뷰→discovery) → ② brief(→두 보고서).",
+  "description": "Onramp — 채널톡 엔터프라이즈 배포 discovery 번들. 고객 현업을 음성으로 인터뷰해 배포 결정에 필요한 정보를 끌어내고(intake), 그 결과로 '배포 계획서'(고객 C레벨용)와 '제품 인풋 문서'(본진 프로덕트팀용 고객 페인/니즈와 제품 고려사항)를 에이전트가 집필한다(brief). 흐름: ① intake(인터뷰→discovery) → ② brief(→두 문서).",
   "author": { "name": "bridgewright" },
   "license": "MIT",
   "keywords": ["onramp","channeltalk","channel-talk","deployment","discovery","interview","alf","prd","voice","intake","brief","cs","cx"],
