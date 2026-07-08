@@ -1,13 +1,31 @@
-import json, os
+import json, os, threading
 import numpy as np
 
 _MODEL_CACHE = {}
+_MODEL_LOCK = threading.Lock()          # 모델 중복 로드 방지 + 프리워밍 진행 중이면 검색이 대기
+_PREWARM_STARTED = set()
+_PREWARM_GUARD = threading.Lock()
 
 def _load_model(name):
-    if name not in _MODEL_CACHE:
-        from sentence_transformers import SentenceTransformer  # lazy: 최초 실행 시 다운로드
-        _MODEL_CACHE[name] = SentenceTransformer(name)
-    return _MODEL_CACHE[name]
+    with _MODEL_LOCK:
+        if name not in _MODEL_CACHE:
+            from sentence_transformers import SentenceTransformer  # lazy: 최초 실행 시 다운로드
+            _MODEL_CACHE[name] = SentenceTransformer(name)
+        return _MODEL_CACHE[name]
+
+def prewarm_model(name="intfloat/multilingual-e5-small"):
+    """서버 시작 시 임베딩 모델을 백그라운드로 미리 로드해 첫 검색의 콜드스타트(~8s)를 제거한다.
+    실패해도 조용히 무시 → 검색 시 lazy 재시도(그마저 실패하면 BM25 단독 degraded 폴백)."""
+    with _PREWARM_GUARD:
+        if name in _PREWARM_STARTED:
+            return
+        _PREWARM_STARTED.add(name)
+    def _run():
+        try:
+            _load_model(name)
+        except Exception:
+            pass
+    threading.Thread(target=_run, name="e5-prewarm", daemon=True).start()
 
 def embed_passages(texts, model_name="intfloat/multilingual-e5-small"):
     m = _load_model(model_name)
