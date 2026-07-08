@@ -1,6 +1,6 @@
 ---
 name: interview
-description: 채널톡 알프(AI 상담 에이전트) 도입을 앞둔 고객사의 현업(CS 리더·경영진·상담사·IT 담당)을 ElevenLabs 음성 에이전트로 "실제 사람과 대화하듯" 인터뷰해, 무엇을 어떻게 배포할지 정하는 데 필요한 정보를 막연한 형용사가 아니라 구체 일화로 끌어내고 그 대화를 turn 기반 transcript로 남긴다. 브라우저(WebRTC 에코제거 + 끼어들기 OK)와 로컬 CLI 두 경로. 인터뷰는 한국어. Use when 사용자가 "배포 인터뷰를 진행"하거나 "현업 음성 인터뷰", "interview 인터뷰", "알프 도입 discovery"를 요청할 때. transcript에서 deployment-discovery.json(계약)까지 도출해 report로 넘긴다.
+description: 채널톡 알프(AI 상담 에이전트) 도입을 앞둔 고객사의 현업(CS 리더·경영진·상담사·IT 담당)을 ElevenLabs 음성 에이전트로 "실제 사람과 대화하듯" 인터뷰해, 무엇을 어떻게 배포할지 정하는 데 필요한 정보를 막연한 형용사가 아니라 구체 일화로 끌어내고 그 대화를 turn 기반 transcript로 남긴다. 로컬에서 브라우저 음성(WebRTC 에코제거 + 끼어들기)으로 30초 내 실행. 인터뷰는 한국어. Use when 사용자가 "배포 인터뷰를 진행"하거나 "현업 음성 인터뷰", "interview 인터뷰", "알프 도입 discovery"를 요청할 때. transcript에서 deployment-discovery.json(계약)까지 도출해 report로 넘긴다.
 version: 1.0.0
 permissions:
   - file_read
@@ -11,64 +11,46 @@ permissions:
 
 # Interview — 도입 준비 음성 인터뷰 (①단계)
 
-채널톡 배포 담당자가 **고객사 현업**을 ElevenLabs 음성 에이전트로 인터뷰한다. 목표는 "이 고객에 알프를 어떻게 깔지"에 필요한 사실을 실제 일화로 끌어내고 **깨끗한 transcript**를 남긴 뒤, 이를 **`deployment-discovery.json`(계약)**으로 정리해 다음 단계(report)에 넘기는 것. 인터뷰는 **한국어**, UI는 채널톡 룩.
+채널톡 배포 담당자가 **고객사 현업**을 ElevenLabs 음성 에이전트로 인터뷰한다. 목표는 "이 고객에 알프를 어떻게 깔지"에 필요한 사실을 실제 일화로 끌어내고 **깨끗한 transcript**를 남긴 뒤, 이를 **`deployment-discovery.json`(계약)**으로 정리해 다음 단계(report)로 넘기는 것. 인터뷰는 **한국어**, 실행은 **로컬→브라우저 음성 단일 경로**(WebRTC 에코제거 + 끼어들기).
 
-> **범위(end-to-end)**: 음성 인터뷰 → transcript → `deployment-discovery.json`. 다운스트림 계약: `references/handoff-contract.md`, 스키마: `references/discovery-spec.md`.
+## 즉시 실행 (목표: 30초 내 — 이 순서 그대로)
+띄우기 위해 다른 파일을 읽지 마라. `launch.sh` 가 venv·에이전트·서버를 모두 처리한다(첫 실행이면 1회 설치까지).
 
-## 두 가지 실행 경로
-- **브라우저 (권장·데모)** — `scripts/serve_browser.py`. signed URL을 발급해 로컬 페이지(`assets/talk_template.html`, 채널톡 스타일)를 띄운다. WebRTC 에코 제거 → 스피커 환경 + 끼어들기 동작.
-- **로컬 CLI** — `scripts/run_interview.py`. 마이크 루프 + transcript 저장. `--text-only`로 오디오 없이 캡처 점검.
+1. **백그라운드로 실행**: `bash skills/interview/launch.sh` (run_in_background)
+2. 출력의 `http://127.0.0.1:<port>/talk.html` 를 사용자에게 안내 — 브라우저가 자동으로 열린다. "🎙️ 인터뷰 시작" → 마이크 허용 → 한국어 음성 대화, 끝나면 "■ 종료".
+3. 사용자가 "끝났어 / 인터뷰 끝"이라고 하면 아래 **조립**으로 넘어간다.
 
-## 워크플로우
+> 인터뷰어는 첫 질문으로 상대의 역할(CS 리더/경영진/상담사/IT)을 스스로 확인하고 해당 흐름으로 grill-me 한다. 롤을 미리 고르거나 에이전트를 수동 셋업하지 마라.
 
-### Step 0 — 셋업 (최초 1회)
-1. `uv venv --python 3.12 .venv` → `uv pip install -r skills/interview/requirements.txt`.
-2. `skills/interview/.env`에 `ELEVENLABS_API_KEY`(대시보드 → Agents). `cp skills/interview/.env.example skills/interview/.env`.
-3. 마이크 권한.
+## 인터뷰 종료 후 — deployment-discovery.json 조립 (이때만 스키마를 읽는다)
+1. transcript: `.venv/bin/python skills/interview/scripts/fetch_transcript.py` → `_samples/transcript.jsonl` + `interview-notes.md`.
+2. `references/discovery-spec.md` 스키마대로 `output/deployment-discovery.json` 조립. 3축(A 업무·병목 / B 시스템·연동 / C 성과·임팩트)을 transcript의 **구체 일화**로 채우고, 미확보 슬롯은 상상 금지 → `"unknown"`/`open_questions`.
+3. 게이트: `.venv/bin/python skills/interview/scripts/validate_discovery.py output/deployment-discovery.json` (ERROR면 인터뷰로 되돌아가 보강).
+4. 연동 tier·자동화 우선순위·제품 갭을 요약 보고 → **report로 넘긴다**. 가상 예시: `assets/sample-discovery.json`.
 
-### Step 1 — 인터뷰어 에이전트 생성/갱신
-`prompt/interviewer-system-prompt.md`(SSOT, grill-me + 4롤 스크립트)를 에이전트로 등록:
-```bash
-uv run python skills/interview/scripts/setup_agent.py --write-env      # 생성 → AGENT_ID 기록
-uv run python skills/interview/scripts/setup_agent.py --agent-id <id>  # 프롬프트 수정 후 갱신
-```
-> **음성 조정**: `--speed 1.1`(범위 0.7~1.2, 클수록 빠름), `--voice-id <id>`로 보이스 교체. 한국어 원어민 보이스 예시 — HJ 여성(따뜻함) `eI3jlA17XYDwAIY4lo0y`, Jihu 남성(차분) `i4rvH83fgM9aBqIBZ5zH`. 라이브러리 보이스는 계정에 먼저 추가해야 사용 가능(`POST /v1/voices/add/{owner}/{voice_id}`). 현재 데모 에이전트는 HJ 여성 + 속도 1.1 적용됨.
-
-### Step 2 — 인터뷰 진행
-- **인터뷰 대상 롤을 먼저 정한다**: `cs_lead`(CX/CS 리더·주 대상) / `exec`(경영진) / `agent`(현장 상담사) / `it`(IT 담당). 프롬프트가 첫 메시지에서 롤·회사 규모를 확인하고 해당 롤 흐름으로 진행.
-- 브라우저: `uv run python skills/interview/scripts/serve_browser.py` → **Start** → 마이크 허용 → 대화. 답을 마치면 Enter/Space로 턴 종료.
-- CLI: `uv run python skills/interview/scripts/run_interview.py`.
-- `.env`·마이크·네트워크 때문에 **sandbox-off** 또는 사용자가 직접 실행.
-
-### Step 3 — transcript 확보
-- 브라우저: `python3 scripts/fetch_transcript.py --out output` → `output/transcript.jsonl` + `interview-notes.md`.
-- CLI: 자동 저장.
-
-### Step 4 — deployment-discovery.json 조립 (transcript → 계약)
-인터뷰가 끝나면 transcript를 읽어 `references/discovery-spec.md` 스키마대로 **`output/deployment-discovery.json`**을 조립한다:
-1. 3축(A 업무·병목 / B 시스템·연동 / C 성과·임팩트)의 슬롯을 transcript의 **구체 일화**에서 채운다. 확보 못 한 슬롯은 상상 금지 → `"unknown"` 또는 `open_questions`.
-2. 게이트: `python3 scripts/validate_discovery.py output/deployment-discovery.json` (ERROR면 인터뷰로 되돌아가 보강).
-3. 사용자에게 핵심(연동 tier, 자동화 우선순위, 제품 갭 태그)을 한눈에 보고하고 **report로 넘긴다**.
-
-가상 예시: `assets/sample-discovery.json`.
+## 셋업 (수동으로 할 필요 없음 — launch.sh 가 자동 처리)
+최초 1회, 또는 프롬프트를 고쳤을 때만:
+- 설치+에이전트 생성: `bash skills/interview/setup.sh` (venv + deps + 에이전트 생성 → `.env`에 `AGENT_ID` 기록).
+- `.env`: `cp skills/interview/.env.example skills/interview/.env` 후 `ELEVENLABS_API_KEY` 입력(대시보드 → Agents).
+- 프롬프트 수정 후 에이전트 갱신: `.venv/bin/python skills/interview/scripts/setup_agent.py --agent-id <id>` (HJ 여성 보이스·speed 1.1 기본 적용).
 
 ## 가드레일
 - **음성 자연스러움 우선** — 한 번에 한 질문, 모호한 형용사엔 구체 장면을 되묻는다(프롬프트가 강제).
 - **grill-me** — 페인포인트를 대놓고 묻지 않고 일화 → 빈도 → 왜 안 고쳐졌나 → 원하는 것 순으로.
 - **증거 없이 채우지 않음** — 미확보 슬롯은 `open_questions`/`unknown`.
-- **PII 보호** — 실제 transcript·API키는 `output/`·`.env`(gitignore). 커밋 예시는 가상.
-- **프롬프트 = SSOT** — 인터뷰어 행동은 `prompt/interviewer-system-prompt.md` 한 곳에서.
+- **PII 보호** — 실제 transcript·API키는 `_samples/`·`output/`·`.env`(gitignore). 커밋 예시는 가상.
+- **프롬프트 = SSOT** — 인터뷰어 행동은 `prompt/interviewer-system-prompt.md` 한 곳에서. 플레이스홀더 없이 롤을 스스로 확인한다.
 
 ## 파일
-- `prompt/interviewer-system-prompt.md` — 인터뷰어 페르소나(SSOT, 4롤, grill-me).
+- `launch.sh` — 즉시 실행(venv 보장 → 에이전트 확인 → 브라우저 서버 + URL).
+- `setup.sh` — 최초 1회 설치(venv + deps + 에이전트 생성).
+- `prompt/interviewer-system-prompt.md` — 인터뷰어 페르소나(SSOT, 4롤 자기라우팅, grill-me).
 - `references/discovery-spec.md` — `deployment-discovery.json` 스키마(계약 정본).
 - `references/handoff-contract.md` — 다운스트림(report) 소비 계약.
-- `scripts/setup_agent.py` — ElevenLabs 에이전트 생성/갱신.
-- `scripts/serve_browser.py` — signed URL + 로컬 채널톡 인터뷰 페이지(WebRTC AEC).
-- `scripts/run_interview.py` — 로컬 마이크 음성 루프.
+- `scripts/setup_agent.py` — ElevenLabs 에이전트 생성/갱신(HJ 보이스·speed 1.1 기본).
+- `scripts/serve_browser.py` — signed URL + 채널톡 인터뷰 페이지(WebRTC AEC).
 - `scripts/fetch_transcript.py` — 브라우저 인터뷰 후 transcript 저장.
-- `scripts/sd_audio.py` — sounddevice 오디오 인터페이스.
 - `scripts/validate_discovery.py` — discovery.json 게이트.
-- `assets/talk_template.html` — 채널톡 룩 인터뷰 UI. `assets/channel-logo.webp` — 로고.
+- `assets/talk_template.html` — 채널톡 룩 UI. `assets/channel-logo.webp` — 로고.
 - `assets/sample-discovery.json` — 가상 예시(데모).
-- `tests/test_discovery.py` — validate 단위테스트. `tests/test_transcript.py` — transcript 캡처.
+- `tests/test_discovery.py` — validate 단위테스트.

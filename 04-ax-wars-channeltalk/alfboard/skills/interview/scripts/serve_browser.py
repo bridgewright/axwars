@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""distillery (voice) — 브라우저(WebRTC AEC) 음성 인터뷰 데모.
+"""alfboard interview (voice) — 브라우저(WebRTC AEC) 음성 인터뷰 데모.
 
 ElevenLabs 에이전트용 signed URL 을 발급받아, 브라우저에서 @elevenlabs/client 로 대화하는
 로컬 페이지를 띄운다.
@@ -8,7 +8,7 @@ ElevenLabs 에이전트용 signed URL 을 발급받아, 브라우저에서 @elev
 **스피커로 열린 환경**에서도 (1) 에이전트가 자기 목소리를 듣고 자가대화하지 않고
 (2) 사용자가 말하면 끼어들기(barge-in)가 정상 동작한다 → 해커톤 시연용.
 
-  uv run python skills/distillery/scripts/serve_browser.py
+  uv run python skills/interview/scripts/serve_browser.py
 """
 from __future__ import annotations
 
@@ -67,7 +67,7 @@ HTML = """<!doctype html>
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>distillery · 음성 인터뷰</title>
+<title>채널톡 · 도입 인터뷰</title>
 <style>
   :root { color-scheme: light; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -93,7 +93,7 @@ HTML = """<!doctype html>
 </style>
 </head>
 <body>
-  <h1>distillery · 음성 인터뷰 <span class="tag">열린 환경 · 에코제거 ON</span></h1>
+  <h1>채널톡 · 도입 인터뷰 <span class="tag">열린 환경 · 에코제거 ON</span></h1>
   <p class="sub">스피커로 진행해도 됩니다. 면접관이 말하는 중에 끼어들면 멈춥니다(barge-in). 한국어 음성.</p>
   <div class="controls">
     <button id="start">🎙️ 인터뷰 시작</button>
@@ -148,7 +148,7 @@ $("stop").onclick = async () => { try { await conv?.endSession?.(); } catch (e) 
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description="distillery 브라우저 음성 인터뷰 서버")
+    ap = argparse.ArgumentParser(description="alfboard interview 브라우저 음성 인터뷰 서버")
     ap.add_argument("--port", type=int, default=8723, help="로컬 서버 포트(기본 8723)")
     args = ap.parse_args(argv)
 

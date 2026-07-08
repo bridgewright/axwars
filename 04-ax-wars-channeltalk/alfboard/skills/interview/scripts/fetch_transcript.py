@@ -99,7 +99,7 @@ def main(argv=None):
         with (out / "transcript.jsonl").open("w", encoding="utf-8") as f:
             for t in turns:
                 f.write(json.dumps(t, ensure_ascii=False) + "\n")
-        L = [f"# distillery 음성 인터뷰 — {cid}", "", f"- 발화 턴: {len(turns)}",
+        L = [f"# alfboard 음성 인터뷰 — {cid}", "", f"- 발화 턴: {len(turns)}",
              "> 실제 인터뷰 메모는 PII 포함 가능 — `_samples/`(gitignore) 밖으로 내보내지 말 것.", ""]
         for t in turns:
             who = "면접관" if t["role"] == "agent" else "나(PM)"

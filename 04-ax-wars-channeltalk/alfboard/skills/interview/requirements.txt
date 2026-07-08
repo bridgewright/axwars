@@ -1,16 +1,13 @@
-# distillery (voice) — runtime deps. 설치: uv pip install -r requirements.txt
-# 버전 고정(reproducible installs; 검증된 조합).
+# alfboard interview (voice) — 브라우저 음성 인터뷰 런타임 deps.
+# 설치: uv pip install -r requirements.txt   (버전 고정: reproducible installs)
+#
+# 브라우저 경로는 Python 쪽에서 httpx + python-dotenv 만 사용한다.
+# 음성 대화 자체는 브라우저의 @elevenlabs/client(JS, esm.sh)가 담당하므로
+# Python용 elevenlabs SDK / 로컬 마이크(sounddevice)는 필요 없다.
 
-# ElevenLabs Agents Platform SDK (Conversation, AudioInterface, agents API)
-elevenlabs==2.54.0
-# 로컬 마이크/스피커 — 휠에 PortAudio 번들 → 'brew install portaudio' 불필요
-sounddevice==0.5.5
+# signed URL 발급 · 에이전트 생성/갱신 · transcript 조회 (ElevenLabs REST)
+httpx==0.28.1
 # .env 에서 ELEVENLABS_API_KEY / AGENT_ID 로드
 python-dotenv==1.2.2
-# httpx SOCKS 지원 — Claude Code 샌드박스가 네트워크를 로컬 SOCKS 프록시로 강제할 때 필요
-# (라이브는 보통 sandbox-off 라 불필요하지만, in-sandbox 실행/도구점검 대비 포함)
+# httpx SOCKS 지원 — Claude Code 샌드박스가 네트워크를 로컬 SOCKS 프록시로 강제할 때
 socksio==1.0.0
-
-# (선택) sounddevice 대신 ElevenLabs 기본 DefaultAudioInterface 를 쓰려면 system portaudio
-# 설치 후 아래 주석 해제하고 `--audio pyaudio` 로 실행:
-# pyaudio==0.2.14

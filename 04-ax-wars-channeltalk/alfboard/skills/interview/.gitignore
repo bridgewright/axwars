@@ -6,3 +6,5 @@ _samples/
 __pycache__/
 *.pyc
 .venv/
+output/
+logs/

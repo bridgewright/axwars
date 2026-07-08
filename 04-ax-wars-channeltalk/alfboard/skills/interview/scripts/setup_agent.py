@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""distillery (voice) — ElevenLabs 인터뷰어 에이전트 생성/갱신.
+"""alfboard interview (voice) — ElevenLabs 인터뷰어 에이전트 생성/갱신.
 
 prompt/interviewer-system-prompt.md (SSOT)를 읽어 ElevenLabs Agents Platform 에이전트의
 system prompt / first message / 언어 / LLM 로 등록한다. 프롬프트를 고치면 --agent-id 로 갱신.
@@ -118,18 +118,19 @@ def write_env_agent_id(skill_dir: Path, agent_id: str) -> None:
 
 def main(argv=None) -> int:
     skill_dir = Path(__file__).resolve().parent.parent
-    p = argparse.ArgumentParser(description="distillery 인터뷰어 에이전트 생성/갱신")
+    p = argparse.ArgumentParser(description="alfboard interview 인터뷰어 에이전트 생성/갱신")
     p.add_argument("--prompt-file", default=str(skill_dir / "prompt/interviewer-system-prompt.md"))
-    p.add_argument("--name", default="distillery-interviewer")
+    p.add_argument("--name", default="alfboard-interviewer")
     p.add_argument("--agent-id", default=None, help="주면 생성 대신 갱신")
     p.add_argument("--llm", default="claude-sonnet-4-6",
                    help="에이전트 LLM (예: claude-sonnet-4-6, claude-opus-4-7, gpt-4o)")
     p.add_argument("--temperature", type=float, default=0.4)
     p.add_argument("--language", default="ko")
-    p.add_argument("--voice-id", default=None, help="한국어 보이스 ID(미지정 시 플랫폼 기본)")
+    p.add_argument("--voice-id", default="eI3jlA17XYDwAIY4lo0y",
+                   help="한국어 보이스 ID (기본: HJ 여성 eI3jlA17XYDwAIY4lo0y)")
     p.add_argument("--tts-model", default="eleven_turbo_v2_5")
-    p.add_argument("--speed", type=float, default=None,
-                   help="말하기 속도(0.7~1.2, 1.0 기본, 클수록 빠름. 예: 1.1)")
+    p.add_argument("--speed", type=float, default=1.1,
+                   help="말하기 속도(0.7~1.2, 1.0 기본, 클수록 빠름. 기본 1.1)")
     p.add_argument("--turn-timeout", type=float, default=None,
                    help="사용자 침묵 후 에이전트 응답까지 대기(초). 낮을수록 빠름(예: 2)")
     p.add_argument("--write-env", action="store_true", help="결과 agent_id 를 .env 에 기록")
@@ -154,7 +155,7 @@ def main(argv=None) -> int:
 
     api_key = os.environ.get("ELEVENLABS_API_KEY")
     if not api_key:
-        print("ERROR: ELEVENLABS_API_KEY 없음. skills/distillery/.env 를 채우세요.", file=sys.stderr)
+        print("ERROR: ELEVENLABS_API_KEY 없음. skills/interview/.env 를 채우세요.", file=sys.stderr)
         return 2
 
     try:
