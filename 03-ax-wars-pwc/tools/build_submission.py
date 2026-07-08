@@ -69,11 +69,9 @@ def build(staging: Path) -> None:
         shutil.copy2(REPO_ROOT / plugin_dir / "plugin.json", src / plugin_dir / "plugin.json")
     shutil.copy2(REPO_ROOT / ".mcp.json", src / ".mcp.json")
 
-    # -- skills: track 1 (gaap-ifrs/SKILL.md relocated) + track 2 (already in place) --
-    (src / "skills" / "gaap-ifrs-converter").mkdir(parents=True)
-    shutil.copy2(REPO_ROOT / "gaap-ifrs" / "SKILL.md",
-                 src / "skills" / "gaap-ifrs-converter" / "SKILL.md")
-    copytree(REPO_ROOT / "skills" / "gaap-standards-qa", src / "skills" / "gaap-standards-qa")
+    # -- skills: both live under skills/ now (track 1 gaap-ifrs-converter +
+    #    track 2 gaap-standards-qa), so a single copytree ships both --
+    copytree(REPO_ROOT / "skills", src / "skills")
 
     # -- whole-directory bundles --
     copytree(REPO_ROOT / "gaap-ifrs", src / "gaap-ifrs")                   # track 1 engine
