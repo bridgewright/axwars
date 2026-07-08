@@ -146,10 +146,13 @@ def test_chunk_pages_handles_double_trailing_letter_appendix_paragraphs():
 
 def test_chunk_pages_suffixes_repeated_paragraph_numbers_within_one_tier():
     # A jumbled table/diagram can make PDF extraction repeat a bare number
-    # (confirmed in the real 1019 PDF's numeric worked example); ids must
-    # still come out globally unique via an occurrence suffix rather than
-    # colliding or raising.
-    text = "1\n첫 문단이다.\n\n2\n표 값 조각\n\n2\n또 다른 표 값 조각\n\n3\n셋째 문단이다.\n"
+    # (confirmed in the real 1019 PDF's numeric worked example); when both
+    # occurrences carry real content, ids must still come out globally unique
+    # via an occurrence suffix rather than colliding or raising.
+    # (Content-less repeated fragments -- e.g. a lone "2\n표 값 조각" with no
+    # sentence -- are now dropped by the boundary cleaner as heading/noise, and
+    # were shadow-pruned even before that; see test_chunk_boundary.py.)
+    text = "1\n첫 문단이다.\n\n2\n표 값 조각이다.\n\n2\n또 다른 표 값 조각이다.\n\n3\n셋째 문단이다.\n"
     recs = chunk_pages([Page(text, 1, "p1")], "K-IFRS", "9995", "테스트", "ko", "u", "2025-01-01")
     ids = [r.id for r in recs]
     assert len(set(ids)) == len(ids)

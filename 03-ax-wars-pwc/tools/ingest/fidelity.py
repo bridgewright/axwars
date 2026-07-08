@@ -28,7 +28,9 @@ def roundtrip_coverage(raw_text, records):
     raw = _canon(raw_text)
     if not raw:
         return 1.0
-    joined = _canon("".join(r.text for r in records))
+    # text + heading 합산: 후행 헤딩은 text에서 heading 필드로 재배치될 뿐
+    # 손실이 아니므로 coverage 회계에 함께 포함한다(2026-07-08 경계 정합성).
+    joined = _canon("".join((r.text or "") + (r.heading or "") for r in records))
     # 멀티셋 교집합 근사: 재결합 길이 / 원문 길이(정규화 공백 제거)
     return min(len(joined), len(raw)) / len(raw)
 
@@ -94,6 +96,10 @@ def retained_text_for_coverage(raw_text, gaap="K-IFRS"):
         kept, frontmatter_info = strip_frontmatter(raw_text)
         sections = split_sections(kept)
     retained = sections.get("본문", "") + sections.get("적용지침", "")
+    # 페이지 푸터('- 15 -')는 청커가 제거하므로 coverage baseline에서도 제거해
+    # 정당 제거분이 fidelity에 불리하게 계산되지 않도록 맞춘다(chunk.py와 동일).
+    from .chunk import strip_page_footers
+    retained, _footer_chars = strip_page_footers(retained)
     drop_info = {
         "total_chars": len(raw_text),
         "frontmatter_chars": frontmatter_info["chars_dropped"],
@@ -338,3 +344,49 @@ def detect_shadows(records, max_shadow_chars=_SHADOW_MAX_CHARS,
 
     clean = [r for i, r in enumerate(records) if i not in drop]
     return clean, len(drop)
+
+
+# --- 경계 정합성 게이트 (2026-07-08) -----------------------------------------
+# chunk.py의 새 청커가 페이지 푸터를 제거하고 후행 절/장 제목을 heading 필드로
+# 재귀속하도록 바뀌었다. 아래 세 HARD 게이트는 그 결과가 실제로 clean한지
+# 강제한다(leak/shadow가 못 잡던 '경계가 의미적으로 틀림' 차원). 패턴 정의는
+# chunk.py 한 곳에만 두고 여기서는 함수-지역 import로 재사용(모듈 사이클 회피 —
+# chunk.py가 이 모듈의 flag_oversized_chunks를 top-level import 하므로).
+
+def assert_no_page_footer(records):
+    """HARD 게이트: 레코드 text에 페이지 푸터(대시형 '- N -' 또는 마커가 아닌
+    단독 페이지번호 줄)가 남아 있으면 실패."""
+    from .chunk import _PAGE_FOOTER_RE, _BARE_PAGENUM_RE
+    bad = []
+    for r in records:
+        lines = r.text.split("\n")
+        if any(_PAGE_FOOTER_RE.match(l) for l in lines) or \
+           any(_BARE_PAGENUM_RE.match(l.strip()) for l in lines[1:]):
+            bad.append(r.id)
+    if bad:
+        raise FidelityError(f"{len(bad)} record(s) with page footer in text: {bad[:8]}")
+    return bad
+
+
+def assert_no_trailing_heading(records):
+    """HARD 게이트: 레코드 text가 절/장 제목류 줄로 끝나면 실패(후행 헤딩이 문단
+    본문에 흡수된 상태). 단일 줄 레코드는 대상 아님."""
+    from .chunk import _is_heading_line
+    bad = []
+    for r in records:
+        ls = [l for l in r.text.split("\n") if l.strip()]
+        if len(ls) >= 2 and _is_heading_line(ls[-1], r.lang):
+            bad.append(r.id)
+    if bad:
+        raise FidelityError(f"{len(bad)} record(s) ending with a heading line: {bad[:8]}")
+    return bad
+
+
+def assert_no_orphan_heading(records):
+    """HARD 게이트: text에 실질 내용줄이 하나도 없이 마커/번호/헤딩만인 레코드."""
+    from .chunk import _is_content_line
+    bad = [r.id for r in records
+           if not any(_is_content_line(l, r.lang) for l in r.text.split("\n"))]
+    if bad:
+        raise FidelityError(f"{len(bad)} orphan-heading record(s): {bad[:8]}")
+    return bad

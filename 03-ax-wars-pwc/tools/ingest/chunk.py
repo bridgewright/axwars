@@ -292,36 +292,140 @@ def chunk_pages(pages, gaap, standard_no, standard_title, lang, source_url, as_o
     return recs
 
 
+# --- 페이지푸터 제거 & 헤딩 경계 분리 (2026-07-08 정합성 개선) ---------------
+# PDF 소스(K-IFRS·K-GAAP)는 문단 사이에 (1) 페이지 푸터("- 15 -")와 (2) 번호 없는
+# 절/장 제목("측정"·"리스이용자"·"第二章 …")을 끼워 넣는다. 마커 기반 분할은 이들을
+# 앞 문단 text 꼬리에 흡수해 verbatim을 오염시켰다(전수 스캔: 후행헤딩 24~30%,
+# 페이지푸터 31%). 아래 프리미티브가 푸터를 제거하고, 후행 헤딩을 문단 text에서
+# 떼어 '다음 문단의 heading'으로 재귀속한다 — 원문 문장은 불변, 헤딩은 heading
+# 필드로 보존(무손실).
+_PAGE_FOOTER_RE = re.compile(r"^[ \t]*[-–—][ \t]*\d{1,4}[ \t]*[-–—][ \t]*$")
+_BARE_PAGENUM_RE = re.compile(r"^[ \t]*\d{1,4}[ \t]*$")
+# 순수 마커/번호만 있는 줄(문단번호 그 자체). 헤딩도 내용도 아님.
+_MARKER_ONLY_RE = re.compile(r"^\s*(한?\d+[A-Z]{0,2}(?:\.\d+)*|[A-Z]\d+[A-Z]{0,2}(?:\.\d+)*|"
+                             r"第[〇零一二三四五六七八九十百千]+条|[A-Z])\s*$")
+# 언어별 문장/절 종결 신호: 이 글자로 끝나면 완결된 내용줄(헤딩 아님)로 본다.
+_SENT_END = {
+    "ko": tuple(".?!:;)]}”\"’」』…다"),
+    "zh": tuple("。？！：；）】》”’…"),
+    "vi": tuple(".?!:;)]}”\"’…"),
+    "en": tuple(".?!:;)]}\"’…"),
+}
+# 리스트/불릿/괄호 항목 시작(내용줄 취급 → 헤딩으로 오인 금지). CAS 第N章/节은
+# 여기서 보호하지 않는다(그건 절 제목이라 헤딩으로 떼어야 함); 第N条는 조문
+# 마커라 항상 조각의 첫 줄(마커 줄)로 보존되므로 별도 보호 불필요.
+_LIST_HEAD_RE = re.compile(r"^\s*([(（\[]|[⑴-⒇]|[①-⑳]|\d{1,3}[.)]\s|[가-힣][.)]\s|"
+                           r"[A-Za-z][.)]\s|[•·・◦▪‣∙*\-–—])")
+
+
+def strip_page_footers(text):
+    """대시형 페이지 푸터('- 15 -')를 줄 단위로 제거. 단독 숫자줄은 문단 마커일
+    수 있어 여기서 건드리지 않고(_split_piece가 마커 판정 후 처리), 대시형만
+    안전하게 제거한다. (text, 제거문자수) 반환."""
+    kept, removed = [], 0
+    for ln in text.split("\n"):
+        if _PAGE_FOOTER_RE.match(ln):
+            removed += len(ln)
+            continue
+        kept.append(ln)
+    return "\n".join(kept), removed
+
+
+def _is_heading_line(s, lang="ko"):
+    """절/장 제목류: 짧고, 문장 종결부호로 안 끝나고, 리스트/번호/표가 아님."""
+    s = s.strip()
+    if not s or len(s) > 24:
+        return False
+    if s[-1] in _SENT_END.get(lang, _SENT_END["en"]):
+        return False
+    if _LIST_HEAD_RE.match(s):
+        return False
+    if "|" in s or "\t" in s:            # 표 행은 내용
+        return False
+    if re.search(r"\d{2,}", s):          # 숫자 다수면 데이터/표 조각
+        return False
+    return True
+
+
+def _is_content_line(s, lang="ko"):
+    """실제 본문 줄: 헤딩도, 순수 마커/번호도, 페이지번호도, 빈줄도 아님."""
+    t = s.strip()
+    if not t:
+        return False
+    if _MARKER_ONLY_RE.match(t) or _BARE_PAGENUM_RE.match(t) or _PAGE_FOOTER_RE.match(t):
+        return False
+    if _is_heading_line(t, lang):
+        return False
+    return True
+
+
+def _split_piece(chunk_text, lang):
+    """한 문단 span을 (body_text 또는 None, 후행/단독 헤딩줄 list)로 분해.
+    - 첫 줄(마커) 이후의 단독 페이지번호 줄 제거.
+    - 마지막 '내용줄' 뒤의 헤딩류는 떼어 trailing으로(다음 문단 heading 후보).
+      내용줄은 항상 body에 포함되므로 마커 줄이 헤딩처럼 보여도 보존된다.
+    - 내용줄이 하나도 없으면(전부 헤딩/번호) body_text=None(레코드 미생성)."""
+    lines = chunk_text.split("\n")
+    if lines:
+        lines = [lines[0]] + [l for l in lines[1:] if not _BARE_PAGENUM_RE.match(l.strip())]
+    last_content = -1
+    for i, l in enumerate(lines):
+        if _is_content_line(l, lang):
+            last_content = i
+    if last_content < 0:
+        heads = [l.strip() for l in lines if l.strip() and _is_heading_line(l, lang)]
+        return None, heads
+    body = lines[:last_content + 1]
+    trailing = [l.strip() for l in lines[last_content + 1:]
+                if l.strip() and _is_heading_line(l, lang)]
+    return "\n".join(body).strip(), trailing
+
+
+def _finalize_pieces(raw_pieces, slug, gaap, standard_no, standard_title, lang, tier,
+                     source_url, as_of):
+    """raw_pieces[(para_no, span_text)] → Record 리스트. 각 조각을 _split_piece로
+    정리하고, 떼어낸 후행 헤딩은 '다음 레코드의 heading'으로 이월한다."""
+    recs = []
+    seen = {}
+    pending_heading = ""
+    for para_no, chunk_text in raw_pieces:
+        body_text, trailing = _split_piece(chunk_text, lang)
+        if body_text is None:
+            if trailing:
+                pending_heading = (pending_heading + " " + " ".join(trailing)).strip()
+            continue
+        base_id = f"{slug}:{standard_no}:{tier}:{para_no}"
+        n = seen.get(base_id, 0)
+        seen[base_id] = n + 1
+        rec_id = base_id if n == 0 else f"{base_id}#{n + 1}"
+        recs.append(_mk(rec_id, gaap, standard_no, standard_title, para_no, body_text,
+                        lang, tier, source_url, as_of, heading=pending_heading))
+        pending_heading = " ".join(trailing)
+    return recs
+
+
 def _chunk_region(text, pattern, slug, gaap, standard_no, standard_title, lang, tier,
                    source_url, as_of):
     if not text.strip():
         return []
     text = normalize_missing_space(text)
+    text, _ = strip_page_footers(text)
     marks = list(pattern.finditer(text))
-    pieces = []
+    raw_pieces = []
     if not marks:
         stripped = text.strip()
         if stripped:
-            pieces.append(("0", stripped))
+            raw_pieces.append(("0", stripped))
     else:
         if marks[0].start() > 0:
             lead = text[:marks[0].start()].strip()
             if lead:
-                pieces.append(("0", lead))
+                raw_pieces.append(("0", lead))
         for i, m in enumerate(marks):
             end = marks[i + 1].start() if i + 1 < len(marks) else len(text)
-            pieces.append((m.group(1), text[m.start():end].strip()))
-
-    recs = []
-    seen = {}
-    for para_no, chunk_text in pieces:
-        base_id = f"{slug}:{standard_no}:{tier}:{para_no}"
-        n = seen.get(base_id, 0)
-        seen[base_id] = n + 1
-        rec_id = base_id if n == 0 else f"{base_id}#{n + 1}"
-        recs.append(_mk(rec_id, gaap, standard_no, standard_title, para_no, chunk_text,
-                        lang, tier, source_url, as_of))
-    return recs
+            raw_pieces.append((m.group(1), text[m.start():end].strip()))
+    return _finalize_pieces(raw_pieces, slug, gaap, standard_no, standard_title,
+                            lang, tier, source_url, as_of)
 
 
 def _vas_marks(text, pattern):
@@ -405,7 +509,7 @@ def _chunk_region_vas(text, pattern, slug, gaap, standard_no, standard_title, la
     return recs
 
 
-def _mk(rec_id, gaap, std, title, para, text, lang, tier, url, as_of):
+def _mk(rec_id, gaap, std, title, para, text, lang, tier, url, as_of, heading=""):
     return Record(id=rec_id, gaap=gaap, standard_no=std, standard_title=title,
-                  paragraph_no=para, heading="", text=text, text_norm=normalize_text(text),
+                  paragraph_no=para, heading=heading, text=text, text_norm=normalize_text(text),
                   lang=lang, tier=tier, source_url=url, as_of=as_of, extract_flag=False)
