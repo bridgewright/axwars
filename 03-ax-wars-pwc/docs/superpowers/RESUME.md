@@ -1,8 +1,15 @@
 # 트랙2 (회계기준 원문 RAG 챗봇) — 재개 문서
 
-**최종 갱신:** 2026-07-08 (청커 대개편 + 전 GAAP 재적재 완료. 남은 것: VAS 출처 재라벨, 답변 고도화 스킬)
+**최종 갱신:** 2026-07-08 (청커 대개편 + VAS 출처 재라벨 + 답변 고도화 스킬 + 제출 zip 재빌드까지 완료. 남은 것: 선택적 US-GAAP 원격 확장 문서화뿐)
 
-## 현재 상태 — ✅ 청커/코퍼스 대개편 완료 (커밋 `4dfebf9`까지)
+## 현재 상태 — ✅ 코퍼스 대개편·출처 재라벨·답변 스킬 완료 (커밋 `4c750fa`까지)
+
+### 이번 세션 완료 (2026-07-08, 커밋 `220bc57`→`723bc2f`→`4c750fa`)
+- **Task 1 — VAS 출처 재라벨(`220bc57`):** VAS source_url을 kreston 펌 URL → 공식 발행결정문 `"Bộ Tài chính, Quyết định số N/Y/QĐ-BTC"`로 전환(1180문단, 텍스트·id·벡터 불변=메타만). decision_no 삼중검증(레지스트리·kreston헤더·웹 đợt1~5 일치). day-level 날짜는 출처충돌(đợt3 30/31, 100/2005 25/28)로 인용에서 생략(추측 금지), decision_date는 provenance 보존. `run_ingest.ingest_vas`가 decision_no로 source_url 구성. 벡터 재빌드 불필요 확인(스모크 검색 정합).
+- **Task 2 — 답변 고도화 스킬(`723bc2f`):** `skills/gaap-standards-qa/SKILL.md` 계층형 개편. §0 안전 2단 분리(사실층=검색 원문만 / 해설층=라벨 붙인 해석), §2 다중검색, §3 계층 템플릿([원문]+[해석]+[실무]+[GAAP비교]+[유의]), §4 상호작용, §5 정직, §6 예시. 프롬프트 배터리 6계층 MCP 실증 통과.
+- **마무리(`4c750fa`):** README·submission/README 통계 11,083→10,922·테스트 130 동기화. 제출 zip 재빌드 `~/Desktop/submission-pwc.zip` **17.12MB**(4코퍼스+갱신 SKILL+유효 벡터 포함).
+
+### 그 이전 (커밋 `4dfebf9`까지) — 청커/코퍼스 대개편
 - **전 GAAP 재적재(정합 코드):** K-IFRS 6,115 · **K-GAAP 2,001(HWP)** · CAS 1,626 · VAS 1,180 = **10,922문단**
   - **전수 결함 0**: 페이지푸터·후행헤딩·헤딩전용·leak 모두 0. **내용 손실 0**(전 GAAP coverage 통과 = 정공법 핵심).
   - **K-GAAP은 PDF→HWP 전환**: PDF 공백소실 복원(`13.1 이 장의 목적은…`) + **실무지침 tier 보존**(적용지침 612). 표 내용은 HWP 한계로 생략(`<표>` 제거, 문서화).
@@ -12,17 +19,11 @@
 - **남은 긴 헤딩 꼬리(무손실):** 목차 미등재 17~24자 절 제목 일부가 문단에 남을 수 있음(내용 손실 아님). 폰트로도 구분 불가 확인. 필요시만 추가 정밀화.
 - 계획서: `docs/superpowers/plans/2026-07-08-corpus-chunker-answer-quality.md`.
 
-## ▶ 다음 작업 (사용자 지시: 1 → 2 순서로 진행)
+## ▶ 다음 작업 — Task 1·2 완료. 남은 것은 선택적 US-GAAP 확장뿐
 
-### 1. VAS 출처 QĐ 재라벨 (메타만, 텍스트 불변)
-- **확정 사실:** VAS 저장 텍스트 = 공식 VBPL 법령 원문 verbatim(kreston `/vbpl/`는 정확한 미러). kreston 페이지가 "toàn văn pháp luật chính thức" 명시. VAS 01 = QĐ 165/2002/QĐ-BTC, 발행 Bộ Tài chính. **재수집 불필요, 출처 표기만 공식 QĐ로.**
-- **할 일:** `sources.py`의 VAS 각 표준 `url`(현 `docs.kreston.vn/...`)을 발행 결정문(QĐ 149/2001·165/2002·234/2003·12/2005·100/2005) + Bộ Tài chính로 재라벨. **QĐ별 표준 매핑은 각 kreston 페이지의 자기명시 메타를 WebFetch로 확인해 정확히**(추측 금지). 그 후 `run_ingest --gaap VAS --no-vectors` 재적재 + 벡터 재빌드.
-- 주의: `run_ingest`는 `std.get("url", src.get("url",""))` 폴백 지원(K-IFRS서 추가). VAS도 GAAP-level url 또는 per-std url 가능.
-
-### 2. 답변 고도화 스킬 (Phase 9 — `skills/gaap-standards-qa/SKILL.md`)
-- **설계(계획서 Phase 9):** 계층형 답변 = [원문 verbatim+출처] + [해석(검색근거·라벨)] + [실무(적용지침 tier 검색)] + [GAAP 비교(각 GAAP 실제 검색·인용, 미검색은 명시)] + [유의]. **원문 층 불변, 해석은 검색결과에만 근거, 미검색은 "근거 없음".**
-- 다중검색 전략 + 상호작용(단순조회=원문+간단해석+심화옵션 제안 / 분석요청=전체 계층 / 모호=의도 1개 질문). 선택: MCP `compare_across_gaap` 도구.
-- 검증: 프롬프트 배터리(단순 원문조회~복잡 분석~근거없음).
+- **Task 1(VAS 출처 재라벨)·Task 2(답변 고도화 스킬) = 완료**(위 "이번 세션 완료" 참조, 커밋 `220bc57`/`723bc2f`/`4c750fa`). 제출 zip 재빌드까지 끝.
+- **선택 잔여:** US-GAAP 원격 확장점 문서화(아래 Pending §3, 작음·비필수). 그 외 미착수 필수 작업 없음.
+- 재개 시: 코퍼스·스킬·zip 모두 최신이므로 새 요청부터 시작. 통계는 10,922문단·테스트 130 기준.
 
 **커밋 규칙:** `git add -A -- .` 03-ax-wars-pwc 경로한정(형제 프로젝트 오염 금지). 재적재는 `run_ingest --gaap <G> --no-vectors` 후 마지막에 벡터 통합 재빌드(`build_vectors(load_corpus('corpus'),'corpus/vectors')`).
 
@@ -39,16 +40,10 @@
 
 ## Pending (순서대로)
 
-### 1. VAS(베트남) 코퍼스 — 4번째 내장 GAAP
-- **캐시 있음:** `downloads/vas_*` 26개 파일 이미 다운로드됨(gitignore) → 재다운로드 불필요.
-- **알려진 버그(중단 원인):** VAS 세그멘터의 **표 행(table-row) 정규화기가 과하게 동작** — 진짜 불릿 목록 행(예: VAS 21 đoạn 51 재무상태표 line-item 목록)의 파이프(|)까지 제거해, **목록 마커를 문단 마커로 오인**함. 재실행 시 **표 행 vs 목록 행을 구분**하도록 수정해야 함.
-- 재실행: 이전 VAS 에이전트 프롬프트 재사용(공식 베트남어·성조부호 보존·모지바케 검출·VAS 세그멘터·leak/shadow 게이트·exclude-don't-ship-broken·무회귀). 산출 `corpus/vas.jsonl.zst`, lang="vi", id `vas:<no>:<đoạn>`.
+### 1·2. VAS 코퍼스 + 통합 마무리 — ✅ 완료 (더 이상 할 일 없음)
+- VAS 4번째 GAAP 적재(1180문단)·재임베딩·제출 zip·README 4-GAAP 갱신 모두 완료됨. 표행 vs 목록행 세그멘터 버그도 해결. 출처는 2026-07-08 Task 1에서 공식 QĐ로 재라벨. **재실행 금지(이미 최신).**
 
-### 2. VAS 후 통합 마무리
-- 전 코퍼스 재임베딩(≈10.6k → 1만 초과라 **PQ 자동 전환**, 학습 충분). `build_vectors(load_corpus('corpus'),'corpus/vectors')`.
-- 제출 zip 재빌드(`python tools/build_submission.py`) + README(submission/README.md·README.md) 4-GAAP로 갱신.
-
-### 3. E4 — US GAAP ASC 원격 확장점 문서화(작음)
+### 3. E4 — US GAAP ASC 원격 확장점 문서화(작음, 선택) — 유일한 잔여
 - `sources.py`에 US-GAAP remote 플래그 + MCP 훅 문서화 + 스펙 §8 반영.
 
 ## 핵심 경로
