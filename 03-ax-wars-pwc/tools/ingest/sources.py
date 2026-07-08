@@ -309,7 +309,11 @@ SOURCES = {
              "file_seq_pdf": None, "file_seq_hwp": "1", "format": "hwp", "tier": "본문"},
         ],
     },
-    "US-GAAP": {"lang": "en", "format": "html", "base_url": "https://asc.fasb.org", "standards": []},
+    # US GAAP (FASB ASC) -- 원격 확장점(§8). asc.fasb.org Basic View는 봇월(403)·로그인·
+    # 전문파일 부재로 대량 verbatim 확보 불가 → zip 내장하지 않음. 정식 ASC 구독/라이선스
+    # 피드 확보 시 MCP가 gaap='US-GAAP' 질의를 원격 백엔드로 라우팅하도록 확장한다.
+    "US-GAAP": {"lang": "en", "format": "html", "base_url": "https://asc.fasb.org",
+                "mode": "remote", "standards": []},
     # CAS (中国企业会计准则 / China ASBE) -- 财政部 회계사 own portal
     # (kjs.mof.gov.cn / tfs.mof.gov.cn) returns HTTP 502 from every IP this
     # environment has tried (confirmed 2026-07-06: consistent across repeated

@@ -38,7 +38,7 @@ python -m gaap_standards_mcp.entry corpus "리스 사용권자산 인식"
 
 ## 코퍼스
 
-`corpus/`에 3개 소스 GAAP **9,903문단** — K-IFRS(63기준서·6,137)·일반기업회계기준(36장·2,101)·중국 CAS(95문서·1,665) — 이 zstd 압축 원문(`kifrs/kgaap/cas.jsonl.zst`)과 faiss 벡터 인덱스(`vectors/index.faiss` + `vectors/id_map.json`; 코퍼스 <1만이면 정확탐색 flat, 이상이면 PQ 압축)로 동봉되어 있다. 재빌드:
+`corpus/`에 4개 소스 GAAP **11,083문단** — K-IFRS(63기준서·6,137)·일반기업회계기준(36장·2,101)·중국 CAS(95문서·1,665)·베트남 VAS(26기준서·1,180) — 이 zstd 압축 원문(`kifrs/kgaap/cas/vas.jsonl.zst`)과 faiss 벡터 인덱스(`vectors/index.faiss` + `vectors/id_map.json`; flat/PQ는 압축본 예산 기준 자동 선택)로 동봉되어 있다. 재빌드:
 ```bash
 python -m tools.ingest.run_ingest --gaap K-IFRS --download-dir downloads --corpus-dir corpus
 ```
@@ -46,13 +46,13 @@ python -m tools.ingest.run_ingest --gaap K-IFRS --download-dir downloads --corpu
 ## 테스트
 
 ```bash
-PYTHONPATH=. python -m pytest -q       # 트랙 2: 97 케이스 (BM25·벡터·RRF융합·MCP 4도구·3단 폴백·GAAP별 세그멘터·leak/shadow 게이트·corpus·manifest 등)
+PYTHONPATH=. python -m pytest -q       # 트랙 2: 119 케이스 (BM25·벡터·RRF융합·MCP 4도구·3단 폴백·GAAP별 세그멘터·leak/shadow 게이트·corpus·manifest 등)
 cd gaap-ifrs && python -m pytest -q    # 트랙 1: 34 케이스 (파싱·매핑·조정 6종·명세·영향·CLI·검증기)
 ```
 
 ## 정직한 스코프
 
 - 트랙 1은 K-GAAP·US GAAP·CAS·VAS 4개 소스 GAAP의 **계정 매핑·조정 규칙**을 지원한다(`gaap-ifrs/gaap_ifrs/data/*.json`).
-- 트랙 2의 **원문 검색 코퍼스는 K-IFRS·일반기업회계기준·중국 CAS 3개** 적재 완료(`corpus/manifest.json`, 각 GAAP 전용 세그멘터·leak/shadow 게이트 통과, 다국어 임베딩으로 교차언어 검색 — 중국어 질의로 CAS 원문 검색 실측). **베트남 VAS는 보류**(공식 베트남어 원문 vs 펌 영문 번역본 출처 결정 필요), **US GAAP는 원격 확장 지점**(asc.fasb.org 봇월 차단)으로 남겨둔다.
+- 트랙 2의 **원문 검색 코퍼스는 K-IFRS·일반기업회계기준·중국 CAS·베트남 VAS 4개** 적재 완료(`corpus/manifest.json`, 각 GAAP 전용 세그멘터·leak/shadow 게이트 통과, 다국어 임베딩으로 교차언어 검색 — 중국어 질의로 CAS 원문 검색 실측). **US GAAP만 원격 확장 지점**(asc.fasb.org 봇월 차단)으로 남겨둔다.
 - 임베딩 모델(`intfloat/multilingual-e5-small`)은 용량 문제로 zip에 포함하지 않는다. 최초 실행 시 캐시로 내려받으며, 실패 시 자동으로 BM25 단독(degraded) 검색으로 동작한다.
 - 두 트랙의 산출물은 모두 **전문가 검토용 초안**이며 감사의견·법적 효력을 갖지 않는다.
