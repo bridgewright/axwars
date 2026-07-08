@@ -5,6 +5,7 @@ from dataclasses import asdict
 import openpyxl
 from .reconcile import build_reconciliation
 from .difference_report import build_markdown
+from .basis_grounding import load_corpus_for_grounding
 
 
 def _write_financials(result, path):
@@ -54,8 +55,9 @@ def _write_impact(result, path):
     wb.save(path)
 
 
-def write_all(result, outdir):
+def write_all(result, outdir, corpus_dir=None):
     os.makedirs(outdir, exist_ok=True)
+    corpus = load_corpus_for_grounding(corpus_dir)
     paths = {
         "financials": os.path.join(outdir, "ifrs_financials.xlsx"),
         "reconciliation": os.path.join(outdir, "reconciliation.xlsx"),
@@ -67,7 +69,7 @@ def write_all(result, outdir):
     _write_reconciliation(result, paths["reconciliation"])
     _write_impact(result, paths["impact"])
     with open(paths["difference"], "w", encoding="utf-8") as f:
-        f.write(build_markdown(result))
+        f.write(build_markdown(result, corpus))
     with open(paths["json"], "w", encoding="utf-8") as f:
         json.dump({
             "ifrs_bs": result.ifrs_bs,

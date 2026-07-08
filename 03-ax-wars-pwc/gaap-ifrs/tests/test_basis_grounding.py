@@ -73,3 +73,34 @@ def test_basis_block_fallback_when_no_corpus():
     basis = {"ifrs_ref": "K-IFRS 제1109호 문단 4.1.2", "ifrs_requires": "요약문"}
     out = "\n".join(_basis_block(basis, corpus=None))
     assert "큐레이션 요약 — 코퍼스 원문 미확인" in out and "요약문" in out
+
+
+# ---- Task 4: wiring + integration + determinism ----
+import json
+from gaap_ifrs.convert import run_conversion
+from gaap_ifrs.difference_report import build_markdown
+from gaap_ifrs.report import write_all
+from gaap_ifrs.basis_grounding import DEFAULT_CORPUS_DIR
+
+_TB = "../examples/kgaap/input_trial_balance.csv"
+_EXTRA = "../examples/kgaap/input_adjustments.json"
+
+
+def _result():
+    extra = json.load(open(_EXTRA, encoding="utf-8"))
+    return run_conversion(_TB, "K-GAAP", extra, "KRW", "")
+
+
+def test_write_all_threads_corpus_into_md(tmp_path):
+    paths = write_all(_result(), str(tmp_path), str(DEFAULT_CORPUS_DIR))
+    md = open(paths["difference"], encoding="utf-8").read()
+    if load_corpus_for_grounding(DEFAULT_CORPUS_DIR) is not None:
+        assert "IFRS 근거 (코퍼스 원문)" in md
+        assert "상각후원가로 측정한다" in md  # 1109:4.1.2 원문 일부
+    else:
+        assert "큐레이션 요약 — 코퍼스 원문 미확인" in md
+
+
+def test_determinism_bytewise():
+    corpus = load_corpus_for_grounding(DEFAULT_CORPUS_DIR)
+    assert build_markdown(_result(), corpus) == build_markdown(_result(), corpus)

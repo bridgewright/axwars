@@ -16,11 +16,13 @@ def main(argv=None):
     c.add_argument("--currency", default="KRW")
     c.add_argument("--period", default="")
     c.add_argument("--out", default="out")
+    c.add_argument("--corpus-dir", default=None,
+                   help="코퍼스 디렉토리(기본 자동탐색). 각 조정 근거를 코퍼스 원문으로 grounding")
     args = ap.parse_args(argv)
 
     extra = json.load(open(args.extra, encoding="utf-8")) if args.extra else None
     result = run_conversion(args.input, args.source_gaap, extra, args.currency, args.period)
-    paths = write_all(result, args.out)
+    paths = write_all(result, args.out, args.corpus_dir)
     print("생성:", ", ".join(f"{k}={v}" for k, v in paths.items()))
     flagged = [a.title for a in result.adjustments if a.flagged]
     if flagged:

@@ -34,7 +34,9 @@ def _basis_block(basis, corpus=None, indent=""):
         if found:
             L.append(f"{indent}- **IFRS 근거 (코퍼스 원문)**:")
             for f in found:
-                L.append(f'{indent}    - [{f["label"]}] "{f["text"]}"')
+                # 원문 PDF 래핑 줄바꿈만 이어붙여 markdown 가독성 확보(글자·단어 불변).
+                text = " ".join(f["text"].split())
+                L.append(f'{indent}    - [{f["label"]}] "{text}"')
             if missing:
                 L.append(f"{indent}    - (일부 문단 미확인: {', '.join(missing)} — 코퍼스 미적재)")
         else:
