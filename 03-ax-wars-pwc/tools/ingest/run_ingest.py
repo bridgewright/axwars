@@ -200,8 +200,23 @@ def ingest_vas(download_dir):
             if detect_mojibake(raw):
                 raise FidelityError("mojibake (replacement character U+FFFD) detected in raw extraction")
             as_of = std.get("as_of", src.get("as_of", ""))
+            # 출처 표기(2026-07-08 재라벨): 저장 텍스트는 Bộ Tài chính 발행 공식
+            # 법령(Quyết định)의 verbatim 원문(Phase 0.2 대조 확정)이므로, 인용
+            # 출처를 텍스트를 실제 반포한 1차 법원인 발행 결정문으로 표기한다.
+            # 형식 = "Bộ Tài chính, Quyết định số N/Y/QĐ-BTC"(베트남 법령 정식
+            # 인용형식; URL이 아님). decision_no는 삼중 검증됨(레지스트리 자기명시
+            # ·kreston 헤더·웹 đợt 목록 일치). day-level 날짜는 인용에서 의도적으로
+            # 생략: decision_no가 연도를 포함한 확정 유일 식별자인 반면, 발행일은
+            # 출처 간 충돌(đợt3 30 vs 31, 100/2005 25 vs 28; 원 스크랩도 불확실
+            # 표기)이 있어 봇차단으로 1차원문 확인이 안 되는 상태에서 공식 인용에
+            # 특정일을 단정하지 않는다(추측 금지). 원 decision_date는 레지스트리에
+            # provenance로 보존. 전자본 미러(std["url"]=kreston)도 재수집용으로만
+            # 레지스트리에 남기고 출처 표기엔 쓰지 않는다(펌 도메인 배제).
+            dno = std.get("decision_no", "")
+            source_url = (f"{src.get('publisher', '')}, Quyết định số {dno}"
+                          if dno else std.get("url", ""))
             recs = chunk_pages(pages, "VAS", std["no"], std["title"], src["lang"],
-                               std.get("url", ""), as_of, tier=std.get("tier", "본문"))
+                               source_url, as_of, tier=std.get("tier", "본문"))
             _cov, info = assert_retained_coverage(raw, recs, gaap="VAS")
             recs, shadow_removed = detect_shadows(recs)
             assert_no_leak(recs)

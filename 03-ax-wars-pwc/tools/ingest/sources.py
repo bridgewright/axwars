@@ -720,7 +720,38 @@ SOURCES = {
     #   đợt 5 -- 100/2005/QĐ-BTC (2005-12-25/28): 11, 18, 19, 30         (4)
     #                                                            total = 26
     # `decision_no`/`decision_date` record each standard's own promulgating
-    # Decision; `as_of` is that same standard's own stated effective date
+    # Decision. As of the 2026-07-08 source relabel, `decision_no` is what
+    # run_ingest.ingest_vas composes into each record's `source_url` citation,
+    # "Bộ Tài chính, Quyết định số <no>": the canonical primary-source legal
+    # reference for the verbatim official text (Phase 0.2 confirmed the stored
+    # text IS that Decision's official VBPL text; Vietnamese law is cited by
+    # Decision number, not by URL). The mapping of each standard to its
+    # Decision was triple-checked -- this registry (built against each
+    # standard's own in-document citation), the kreston page's own self-
+    # declared "Ban hành ... theo Quyết định số ..." header, and an
+    # independent web re-confirmation of all five đợt (batch) lists (149/2001
+    # đợt1, 165/2002 đợt2, 234/2003 đợt3, 12/2005 đợt4, 100/2005 đợt5), all
+    # agreeing on which standards each Decision promulgates.
+    #   The day-level `decision_date` is deliberately NOT surfaced in the
+    # citation: `decision_no` already carries the year and uniquely identifies
+    # the Decision, whereas the promulgation day genuinely CONFLICTS across
+    # sources -- đợt3 registry says 2003-12-31 but an official Bộ Tài chính
+    # circular (via moit.gov.vn) cites "234/2003/QĐ-BTC ngày 30/12/2003", and
+    # đợt5 is internally split (VAS 11 recorded 2005-12-25 vs VAS 18/19/30
+    # 2005-12-28; the đợt5 note above already flags "2005-12-25/28"). With the
+    # authoritative full text bot-blocked here, per 정공법/추측 금지 the
+    # citation asserts only the certain identifier (Decision number) and does
+    # not commit to a contested day. `decision_date` stays below as recorded
+    # provenance (what each source page stated), not as a claim of fact.
+    #   The `url` below (docs.kreston.vn/vbpl/... firm mirror) is kept ONLY as
+    # retrieval/re-download provenance and is deliberately no longer surfaced
+    # as the citation: a competitor audit firm's domain must not stand in for
+    # the official issuing authority. (No government deep-link is pinned as
+    # source_url either: vbpl.vn full-text pages bot-block this environment
+    # and search-returned ItemIDs were noise, so the Decision citation --
+    # itself the authoritative reference -- is used rather than an unverified
+    # URL.)
+    # `as_of` is that same standard's own stated effective date
     # ("có hiệu lực thi hành từ ...") wherever its own page states one. VAS 29
     # and VAS 30's own pages state a decision date but never separately state
     # an effective date anywhere in their own text (confirmed: 0 occurrences
@@ -741,6 +772,8 @@ SOURCES = {
     # extract.py path CAS already uses.
     "VAS": {
         "lang": "vi", "format": "html", "base_url": "https://docs.kreston.vn",
+        # 발행기관(모든 VAS 공통) — source_url 인용 구성에 사용(ingest_vas).
+        "publisher": "Bộ Tài chính",
         "standards": [
             {"no": "01", "title": "Chuẩn mực chung",
              "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-01/",
