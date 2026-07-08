@@ -1,15 +1,17 @@
 # 트랙2 (회계기준 원문 RAG 챗봇) — 재개 문서
 
-**최종 갱신:** 2026-07-06 (사용자 이동으로 VAS 진행 중 중단)
-**재개 방법:** 이 파일을 읽고 "이어서 진행해줘"라고 하면 아래 Pending을 순서대로 진행.
+**최종 갱신:** 2026-07-08 (4개 소스 GAAP 전량 적재 완료 — Phase E 종료)
 
-## 현재 상태 — 안전 (손실 없음)
-- **완료: 3개 소스 GAAP 원문 코퍼스** (모두 커밋됨, 손실 없음)
-  - K-IFRS 6,137문단(63기준서·해석서·개념체계) · 일반기업회계기준 2,101(36장) · 중국 CAS 1,665(95문서) = **9,903문단**, leak 0·id충돌 0
-  - 벡터: `corpus/vectors/index.faiss` (IndexFlatIP, 9,903, 15MB), 교차언어 하이브리드 검색 동작(한국어→K-IFRS/K-GAAP, 중국어→CAS 실측)
-- **제출본:** `~/Desktop/submission-pwc.zip` (15.5MB, ≤100MB) — 트랙1+트랙2, 3-GAAP 코퍼스+벡터, 추출 후 로드·검색 스모크 통과
-- **테스트:** `PYTHONPATH=. python -m pytest -q` → 97 통과
-- **워킹트리 clean** (마지막 커밋 `74f905d`)
+## 현재 상태 — ✅ 완료
+- **4개 소스 GAAP 원문 코퍼스** (모두 커밋됨)
+  - K-IFRS 6,137(63기준서) · 일반기업회계기준 2,101(36장) · 중국 CAS 1,665(95문서) · 베트남 VAS 1,180(26기준서) = **11,083문단**, leak 0·id충돌 0
+  - 벡터: `corpus/vectors/index.faiss` (IndexFlatIP, 11,083, 17MB), 교차언어 검색 실측(한국어→K-IFRS/K-GAAP, 중국어→CAS, 베트남어→VAS)
+  - US GAAP = 원격 확장점(§8, asc.fasb.org 봇월 차단; `sources.py` mode=remote)
+- **제출본:** `~/Desktop/submission-pwc.zip` (17.25MB, ≤100MB) — 트랙1+트랙2, 추출 후 pytest 119 + 검색 스모크 통과
+- **테스트:** 트랙2 119 통과 · 트랙1 34 통과
+- **워킹트리 clean** (마지막 커밋 `4d55a63`)
+
+**남은 것(선택):** US GAAP 정식 ASC 피드(라이선스 확보 시 원격 연결) · 검색 품질 미세조정(표 뒤섞임 #N siblings) · 실제 Codex 플러그인 로드 테스트. (아래 Pending 섹션은 완료된 이력.)
 
 ## Git 체크포인트 (모노레포, 03-ax-wars-pwc 경로한정 커밋)
 - `74f905d` READMEs → 3-GAAP + zip 15.5MB (최신)
