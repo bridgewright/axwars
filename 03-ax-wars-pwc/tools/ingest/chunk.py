@@ -2,7 +2,9 @@ import re
 from gaap_standards_mcp.schema import Record
 from gaap_standards_mcp.normalize import normalize_text
 from .segment import (strip_frontmatter, split_sections, strip_frontmatter_kgaap, split_sections_kgaap,
-                       strip_frontmatter_cas, split_sections_cas)
+                       strip_frontmatter_cas, split_sections_cas,
+                       strip_frontmatter_vas, split_sections_vas,
+                       VAS_PLAIN_PARA_RE, VAS_TABLE_PARA_RE, VAS_GUIDANCE_PARA_RE)
 from .fidelity import flag_oversized_chunks
 
 # 본문: digit paragraph numbers -- "1", "22", "5.5.1", "40G" -- plus the
@@ -227,8 +229,14 @@ def chunk_pages(pages, gaap, standard_no, standard_title, lang, source_url, as_o
     unrelated to either (HTML-sourced, Chinese-numeral "第X条" articles, no
     within-document tier split at all -- see tools/ingest/segment.py's CAS
     module comment) and gets its own third branch. Every other gaap's
-    behavior (this function's pre-existing K-IFRS/US-GAAP/VAS path) is
-    completely unchanged.
+    behavior (this function's pre-existing K-IFRS/US-GAAP path) is completely
+    unchanged. VAS (Vietnamese Accounting Standards) gets its own fourth
+    branch below -- HTML-sourced, plain digit "01."/table "| 01. |" đoạn
+    numbering, at most one letter-numbered Phụ lục appendix per standard (see
+    tools/ingest/segment.py's VAS module comment) -- chunked by
+    `_chunk_region_vas` (not the shared `_chunk_region` every other gaap
+    above uses), since VAS additionally needs the table-vs-list distinction
+    and the cross-reference-line-wrap monotonic filter documented there.
     """
     full = "\n".join(p.text for p in pages)
     slug = _SLUG[gaap]
@@ -248,6 +256,16 @@ def chunk_pages(pages, gaap, standard_no, standard_title, lang, source_url, as_o
         # is never unbound; the real 응용指南/해석 section-numbering pattern
         # is selected per-file via `para_pattern`, not via this slot.
         guidance_pattern = CAS_ARTICLE_RE
+    elif gaap == "VAS":
+        kept, _dropped_info = strip_frontmatter_vas(full)
+        sections = split_sections_vas(kept)
+        # default_body_pattern is unused for VAS: _chunk_region_vas always
+        # merges VAS_PLAIN_PARA_RE + VAS_TABLE_PARA_RE for 본문 regardless of
+        # what is passed here (see _vas_marks) -- kept as VAS_PLAIN_PARA_RE
+        # only so the variable is never unbound, mirroring CAS's own
+        # guidance_pattern placeholder above.
+        default_body_pattern = VAS_PLAIN_PARA_RE
+        guidance_pattern = VAS_GUIDANCE_PARA_RE
     else:
         kept, _dropped_info = strip_frontmatter(full)
         sections = split_sections(kept)
@@ -258,11 +276,12 @@ def chunk_pages(pages, gaap, standard_no, standard_title, lang, source_url, as_o
     body_tier = "본문" if has_structure else tier
     body_pattern = para_pattern if para_pattern is not None else default_body_pattern
 
+    region_chunker = _chunk_region_vas if gaap == "VAS" else _chunk_region
     recs = []
-    recs += _chunk_region(sections["본문"], body_pattern, slug, gaap, standard_no,
-                          standard_title, lang, body_tier, source_url, as_of)
-    recs += _chunk_region(sections["적용지침"], guidance_pattern, slug, gaap, standard_no,
-                          standard_title, lang, "적용지침", source_url, as_of)
+    recs += region_chunker(sections["본문"], body_pattern, slug, gaap, standard_no,
+                           standard_title, lang, body_tier, source_url, as_of)
+    recs += region_chunker(sections["적용지침"], guidance_pattern, slug, gaap, standard_no,
+                           standard_title, lang, "적용지침", source_url, as_of)
 
     recs = flag_oversized_chunks(recs)
 
@@ -279,6 +298,87 @@ def _chunk_region(text, pattern, slug, gaap, standard_no, standard_title, lang, 
         return []
     text = normalize_missing_space(text)
     marks = list(pattern.finditer(text))
+    pieces = []
+    if not marks:
+        stripped = text.strip()
+        if stripped:
+            pieces.append(("0", stripped))
+    else:
+        if marks[0].start() > 0:
+            lead = text[:marks[0].start()].strip()
+            if lead:
+                pieces.append(("0", lead))
+        for i, m in enumerate(marks):
+            end = marks[i + 1].start() if i + 1 < len(marks) else len(text)
+            pieces.append((m.group(1), text[m.start():end].strip()))
+
+    recs = []
+    seen = {}
+    for para_no, chunk_text in pieces:
+        base_id = f"{slug}:{standard_no}:{tier}:{para_no}"
+        n = seen.get(base_id, 0)
+        seen[base_id] = n + 1
+        rec_id = base_id if n == 0 else f"{base_id}#{n + 1}"
+        recs.append(_mk(rec_id, gaap, standard_no, standard_title, para_no, chunk_text,
+                        lang, tier, source_url, as_of))
+    return recs
+
+
+def _vas_marks(text, pattern):
+    """VAS counterpart to plain `pattern.finditer(text)`: for the 본문 region
+    (`pattern is VAS_PLAIN_PARA_RE`, chunk_pages' VAS default_body_pattern),
+    merges VAS_PLAIN_PARA_RE + VAS_TABLE_PARA_RE (see segment.py's VAS module
+    comment for why 본문 always needs both shapes at once, never just one);
+    for 적용지침 (`pattern is VAS_GUIDANCE_PARA_RE`) uses that pattern alone,
+    since Phụ lục A never uses table-style markers.
+
+    Then drops any candidate whose captured integer does not STRICTLY exceed
+    the previous KEPT candidate's -- a stateful filter `_chunk_region`'s own
+    plain `pattern.finditer()` has no equivalent of, needed here because a
+    genuine đoạn/phụ-lục-paragraph sequence is confirmed strictly monotonic
+    in every one of the 26 real VAS files, so any non-increasing candidate is
+    necessarily a false positive: a cross-reference number that happens to
+    line-wrap onto its own line with real trailing same-line space before the
+    next real sentence (confirmed real case: VAS 11 본문's own "...theo các
+    đoạn 50 đến\n54. Phần lớn..." and "...theo đoạn\n55.\nLợi ích..." -- both
+    structurally indistinguishable from a genuine marker by shape alone, both
+    correctly rejected here since a real đoạn 54/55 already preceded them).
+    The letter prefix (적용지침 candidates only) is stripped before comparing
+    so "A17" compares as 17, not against 본문's own separate 1..74 sequence
+    (적용지침 is always chunked as a fully separate call from 본문, so the two
+    sequences' running-max state never mixes)."""
+    if pattern is VAS_GUIDANCE_PARA_RE:
+        raw = list(pattern.finditer(text))
+    else:
+        raw = list(VAS_PLAIN_PARA_RE.finditer(text)) + list(VAS_TABLE_PARA_RE.finditer(text))
+    raw.sort(key=lambda m: m.start())
+
+    kept = []
+    running_max = 0
+    for m in raw:
+        v = int(re.match(r"[A-Z]?(\d+)", m.group(1)).group(1))
+        if v > running_max:
+            kept.append(m)
+            running_max = v
+    return kept
+
+
+def _chunk_region_vas(text, pattern, slug, gaap, standard_no, standard_title, lang, tier,
+                       source_url, as_of):
+    """VAS counterpart to `_chunk_region`: identical piece-slicing/Record-
+    building shape (marker match's OWN start is where its paragraph's stored
+    `text` begins -- i.e. the marker itself, pipes included where the source
+    is table-style, is part of the verbatim record, same convention every
+    other GAAP's own chunker uses -- see segment.py's VAS module comment on
+    why pipes are never stripped), but sourced from `_vas_marks` (merged
+    plain+table shapes, cross-reference-line-wrap-filtered) instead of a bare
+    `pattern.finditer(text)`. VAS never needs `_chunk_region`'s own
+    `normalize_missing_space` call here -- VAS's missing-space fix
+    (`normalize_missing_space_vas`) already ran once, on the full raw page
+    text, inside `strip_frontmatter_vas`, before section-splitting."""
+    if not text.strip():
+        return []
+    marks = _vas_marks(text, pattern)
     pieces = []
     if not marks:
         stripped = text.strip()

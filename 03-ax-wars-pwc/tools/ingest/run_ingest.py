@@ -2,7 +2,8 @@ import argparse, json, os
 from .sources import get_source
 from .extract import extract
 from .chunk import chunk_pages, _SLUG, ChunkingError, CAS_GUIDANCE_PARA_RE
-from .fidelity import assert_retained_coverage, assert_no_leak, detect_shadows, FidelityError
+from .fidelity import (assert_retained_coverage, assert_no_leak, detect_shadows, FidelityError,
+                       detect_mojibake)
 from .pack import pack
 
 def download_path(download_dir, gaap, standard_no, fmt):
@@ -151,6 +152,74 @@ def ingest_cas(download_dir):
     return records, report
 
 
+def ingest_vas(download_dir):
+    """VAS-specific counterpart to ingest_gaap()/ingest_cas(): the VAS
+    registry is uniform (every entry is HTML, tier="본문" at the registry
+    level, standard_no always equal to the registry's own `no` -- see
+    sources.py's VAS registry docstring), so this is simpler than
+    ingest_cas() -- no per-entry standard_no override or para_style
+    selection is needed, since chunk_pages' own VAS branch already merges
+    both đoạn-marker shapes (plain + table) and both region tiers (본문 +
+    Phụ lục 적용지침/적용사례) unconditionally for every VAS standard (see
+    tools/ingest/segment.py's VAS module comment). Reuses every other
+    primitive ingest_gaap()/ingest_cas() already use (extract, chunk_pages,
+    assert_retained_coverage, detect_shadows, assert_no_leak) completely
+    unchanged, plus an explicit `detect_mojibake` pass over the raw
+    extraction (replacement-character/broken-UTF-8 detection) that neither
+    of those two calls today -- Vietnamese diacritics are exactly the kind of
+    multi-byte content a broken decode would corrupt silently past the
+    existing coverage/leak gates (both are char-count/regex checks, neither
+    inspects individual codepoints), so this is a real, not merely
+    belt-and-suspenders, additional gate for this GAAP specifically.
+
+    Same EXCLUDE-don't-ship-broken discipline as ingest_cas() (not
+    ingest_gaap()'s own fail-fast-the-whole-gaap design): a coverage/leak/
+    mojibake failure on one standard is logged as NEEDS-REVIEW and excluded,
+    the rest of the 26 continue -- 0 leaks and 0 mojibake must still hold for
+    whatever IS shipped.
+
+    Returns (records, report) -- report is a list of per-standard dicts (no,
+    standard_no, title, tier, chunks, leak_pass, shadows, verdict) suitable
+    for rendering the ingestion report table directly."""
+    src = get_source("VAS")
+    records, report = [], []
+    for std in src["standards"]:
+        fmt = std.get("format", src["format"])
+        path = download_path(download_dir, "VAS", std["no"], fmt)
+        row = {"no": std["no"], "standard_no": std["no"], "title": std["title"],
+               "tier": std.get("tier", "본문"), "chunks": 0, "leak_pass": None,
+               "shadows": 0, "verdict": None}
+        if not os.path.exists(path):
+            row["verdict"] = "MISSING (not downloaded)"
+            report.append(row)
+            print(f"  VAS {std['no']}: MISSING ({std['title']}) -- not downloaded")
+            continue
+        try:
+            pages = extract(path, fmt)
+            raw = "\n".join(p.text for p in pages)
+            if detect_mojibake(raw):
+                raise FidelityError("mojibake (replacement character U+FFFD) detected in raw extraction")
+            as_of = std.get("as_of", src.get("as_of", ""))
+            recs = chunk_pages(pages, "VAS", std["no"], std["title"], src["lang"],
+                               std.get("url", ""), as_of, tier=std.get("tier", "본문"))
+            _cov, info = assert_retained_coverage(raw, recs, gaap="VAS")
+            recs, shadow_removed = detect_shadows(recs)
+            assert_no_leak(recs)
+        except (FidelityError, ChunkingError) as e:
+            row["verdict"] = f"EXCLUDED - NEEDS REVIEW ({e})"
+            report.append(row)
+            print(f"  VAS {std['no']}: EXCLUDED -- {e}")
+            continue
+        row.update({"chunks": len(recs), "leak_pass": True, "shadows": shadow_removed,
+                    "verdict": "OK"})
+        report.append(row)
+        print(f"  VAS {std['no']} ({std['title']}): retained={info['retained_chars']} "
+              f"dropped={info['dropped_chars']} of {info['total_chars']} chars, "
+              f"{len(recs)} records, shadows_removed={shadow_removed}")
+        records += recs
+    return records, report
+
+
 def write_without_vectors(gaap, recs, corpus_dir):
     """Write ONE gaap's corpus/<slug>.jsonl.zst and MERGE its manifest entry
     into any existing corpus/manifest.json (creating one if absent), leaving
@@ -192,7 +261,17 @@ def main():
                           "staged multi-GAAP builds where embedding happens once, "
                           "combined, at the end")
     a = ap.parse_args()
-    recs = ingest_gaap(a.gaap, a.download_dir)
+    # VAS dispatches to its own ingest_vas() (needs the per-standard
+    # EXCLUDE-don't-ship-broken report ingest_gaap()'s single fail-fast-the-
+    # whole-gaap design was never built for -- see ingest_vas's own
+    # docstring); every other gaap's own existing dispatch (including CAS,
+    # which -- pre-existing, unrelated to this VAS addition, left untouched
+    # here) already went through ingest_gaap() before this branch was added,
+    # so behavior for every gaap other than VAS is unchanged.
+    if a.gaap == "VAS":
+        recs, _report = ingest_vas(a.download_dir)
+    else:
+        recs = ingest_gaap(a.gaap, a.download_dir)
     if a.no_vectors:
         write_without_vectors(a.gaap, recs, a.corpus_dir)
     else:

@@ -893,3 +893,338 @@ def split_sections_cas(text):
     tools/ingest/run_ingest.py's `ingest_cas` needs -- not guessed from
     content that was never split-worthy to begin with."""
     return {"본문": text, "적용지침": "", "결론도출근거": "", "적용사례": ""}
+
+
+# ---------------------------------------------------------------------------
+# VAS (Vietnamese Accounting Standards / Chuẩn mực kế toán Việt Nam) segmentation
+#
+# Structurally unrelated to K-IFRS/K-GAAP/CAS above: the 26 issued VAS are
+# sourced as HTML from docs.kreston.vn (Kreston Vietnam -- a Kreston
+# International member audit/accounting firm's own "văn bản pháp luật"
+# (legal-document) reference library at
+# docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-NN/), each page a
+# verbatim Vietnamese-language reproduction of the original Bộ Tài chính
+# (Ministry of Finance) Quyết định (Decision) text -- confirmed by the
+# "(Ban hành và công bố theo Quyết định số .../QĐ-BTC ngày ... của Bộ trưởng
+# Bộ Tài chính...)" citation opening every one of the 26 downloaded pages,
+# with the 26 standards traceable to exactly 5 promulgating Decisions in 5
+# issuance batches (đợt): 149/2001/QĐ-BTC (đợt 1, 2001-12-31: VAS 02/03/04/14
+# -- 4 standards), 165/2002/QĐ-BTC (đợt 2, 2002-12-31: VAS 01/06/10/15/16/24
+# -- 6), 234/2003/QĐ-BTC (đợt 3, 2003-12-31: VAS 05/07/08/21/25/26 -- 6),
+# 12/2005/QĐ-BTC (đợt 4, 2005-02-15: VAS 17/22/23/27/28/29 -- 6, confirmed by
+# VAS 29's own decision-preamble text literally reading "sáu (06) chuẩn mực
+# kế toán Việt Nam (đợt 4)"), 100/2005/QĐ-BTC (đợt 5, 2005-12-25/28: VAS
+# 11/18/19/30 -- 4). 4+6+6+6+4 = 26 -- see tools/ingest/sources.py's VAS
+# registry for the full per-standard citation this was scraped from. This is
+# the OFFICIAL Vietnamese original text (verbatim, per the task's explicit
+# requirement), not a firm's English translation.
+#
+# Every page shares one shape: a KrestonVN site-chrome header line, a
+# duplicate "VAS NN - <title>" line, a standard title block ("CHUẨN MỰC KẾ
+# TOÁN VIỆT NAM SỐ NN" / "CHUẨN MỰC SỐ NN" (VAS 29) / "HỆ THỐNG CHUẨN MỰC KẾ
+# TOÁN VIỆT NAM"+"CHUẨN MỰC NN" (VAS 30) -- punctuation/wording is NOT
+# consistent enough to anchor on directly), the "(Ban hành...)" Decision
+# citation, then (24 of 26 files) a "QUY ĐỊNH CHUNG" heading, then đoạn 01
+# itself. VAS 29 additionally prepends the FULL Decision document's own
+# preamble (a "BỘ TÀI CHÍNH | CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM" letterhead
+# table, "Số: 12/2005/QĐ-BTC", "QUYẾT ĐỊNH CỦA BỘ TRƯỞNG BỘ TÀI CHÍNH", "Về
+# việc ban hành và công bố...") ahead of all of the above -- this is
+# boilerplate common to the whole batch-4 Decision, not the standard's own
+# regulatory text, and must be dropped like every other GAAP's own
+# board-resolution/copyright preamble.
+#
+# Rather than enumerate every one of these title-block wording variants with
+# bespoke anchors (the K-IFRS/K-GAAP/CAS approach above), strip_frontmatter_vas
+# anchors on the FIRST genuine đoạn marker itself (đoạn "01"/"1", found via the
+# SAME paragraph-boundary detector used for chunking -- see VAS_PLAIN_PARA_RE/
+# VAS_TABLE_PARA_RE/_vas_para_matches below) and cuts everything before it.
+# This is simpler AND more robust than a title-block anchor: it is completely
+# insensitive to exactly how the title block is worded/punctuated/line-wrapped
+# (confirmed empirically safe against all 26 real files -- none of them have
+# anything shaped like a real đoạn marker anywhere in their own frontmatter,
+# so this can never mistake preamble text for the real body start).
+#
+# ĐOẠN (PARAGRAPH) NUMBERING -- two shapes, confirmed across all 26 files:
+#   1. PLAIN: "01. Mục đích..." -- digits + literal "." + real same-line space
+#      + body text (25 of 26 files; VAS 27 uses bare "1."/"2." instead of
+#      "01."/"02." -- no zero-padding requirement either way).
+#   2. TABLE: "| 01. | Mục đích... | " -- ONE file only (VAS 23) renders EVERY
+#      đoạn as a 2-column HTML table row (col 1 = bare marker alone, col 2 =
+#      the paragraph's own prose), which trafilatura (see extract.py's HTML
+#      path) extracts as markdown-style "| a | b |" rows.
+#
+# THE KNOWN BUG THIS MODULE GUARDS AGAINST (the reason an earlier pass at this
+# corpus was interrupted): a genuine bulleted/enumerated list EMBEDDED inside
+# an ordinary paragraph -- e.g. VAS 21 đoạn 51's 19-item balance-sheet
+# line-item list, or đoạn 65's own 17-item income-statement line-item list, or
+# VAS 24's Phụ lục 1/2 cash-flow-statement form templates -- is ALSO rendered
+# by trafilatura as pipe-delimited table rows, e.g.
+# "| 1. Tiền và các khoản tương đương tiền; |  | " -- superficially identical
+# to a TABLE-style đoạn marker. A prior segmenter attempt STRIPPED the pipe
+# characters as a "table-row normalizer" cleanup pass BEFORE paragraph-marker
+# detection ran; once stripped, "1. Tiền và các khoản..." sits at a bare line
+# start indistinguishable from a real marker, so the list's 19 items were each
+# mis-detected as new đoạn boundaries, corrupting đoạn 51 into 19 bogus
+# fragments.
+#
+# THE FIX has two parts:
+#   (a) VAS_TABLE_PARA_RE requires the marker's OWN table cell to contain
+#       NOTHING but the bare number ("| 01. |" -- the closing "|" follows the
+#       dot with only whitespace in between). A list item's number and its
+#       own text sit TOGETHER in the same cell ("| 1. Tiền và các khoản
+#       tương đương tiền; |" -- real prose, not a pipe, follows the dot), so
+#       it never satisfies this shape. A plain-style match separately
+#       requires the line to start directly with a digit (never "|"), so a
+#       pipe-prefixed list row can never satisfy that shape either. Both
+#       requirements are checked directly against the RAW extracted text.
+#   (b) There is no separate "table-row normalizer" step at all: pipe
+#       characters are left exactly as extracted in the retained, citable
+#       `text` (this module's/the whole pipeline's verbatim-preservation
+#       principle -- see chunk.py's Record.text docstring), for BOTH a real
+#       TABLE-style marker row (VAS 23) and an embedded list/form table (VAS
+#       21/24) alike. Because no normalization pass ever touches these pipes,
+#       this bug class cannot recur structurally, not merely empirically --
+#       there is nothing left that could ever again turn a list marker into
+#       something indistinguishable from a paragraph marker.
+# Confirmed empirically against all 26 real files: every real đoạn/phụ lục
+# sequence recovered is exactly right (see tests/test_segment.py and this
+# ingestion's own per-standard report), and neither embedded list (VAS 21)
+# nor either form template (VAS 24) ever produces a false paragraph boundary.
+#
+# CROSS-REFERENCE LINE-WRAP FALSE POSITIVES: separately from the table/list
+# issue above, a plain-style candidate can still be a false positive when a
+# cross-reference like "...theo các đoạn 50 đến\n54." or "...theo đoạn\n55."
+# happens to line-wrap so the referenced number lands at a line start with
+# real trailing same-line space before the next real sentence -- confirmed in
+# VAS 11 (both examples are real, from its own 본문). Since a genuine đoạn/
+# phụ-lục sequence is confirmed STRICTLY monotonically increasing in every one
+# of the 26 real files (no legitimate renumbering/restart anywhere), chunk.py's
+# VAS chunker rejects any candidate marker whose captured integer does not
+# exceed the previous KEPT marker's -- see chunk.py's `_vas_marks`.
+#
+# APPENDICES ("PHỤ LỤC"): always rendered in full uppercase, occasionally
+# line-wrapped ("PHỤ\nLỤC A"), confirmed present in only 2 of the 26 files --
+# distinguished from inline mixed-case prose cross-references ("...hướng dẫn
+# trong Phụ lục A về việc...", never a line-start match against
+# _VAS_APPENDIX_HEAD_RE below, which is deliberately case-sensitive) by that
+# same all-caps convention every OTHER heading in these documents also uses
+# ("QUY ĐỊNH CHUNG", "NỘI DUNG CHUẨN MỰC"):
+#   * VAS 11's "PHỤ LỤC A" ("Hướng dẫn bổ sung" -- Supplementary Guidance) is
+#     genuine, substantive, letter-numbered guidance ("A1." .. "A17.",
+#     confirmed strictly monotonic, no cross-reference false positives),
+#     directly parallel to K-IFRS's own 부록 application-guidance tier --
+#     KEPT, tagged tier="적용지침".
+#   * VAS 24's "PHỤ LỤC 1"/"PHỤ LỤC 2" are blank statutory cash-flow-statement
+#     FORM templates (a "Chỉ tiêu/Mã số/Kỳ trước/Kỳ này" column header then
+#     row after row of a line-item name + a code number + two BLANK amount
+#     cells -- no đoạn-style guidance prose, no lettered paragraph markers at
+#     all) -- the same shape as K-GAAP's own excluded "영문양식" registry
+#     entry (a blank financial-statement FORM exhibit, "not citable paragraph
+#     text" per that entry's own ingestion note). EXCLUDED here for the same
+#     reason, distinguished structurally (does this appendix block contain
+#     any real VAS_GUIDANCE_PARA_RE marker at all?) rather than by heading
+#     text, so this generalizes to any future VAS appendix of either shape
+#     without new bespoke logic. Routed into the "적용사례" bucket as a
+#     labeling/bookkeeping convenience only (same convention K-GAAP's own
+#     소수의견 uses for the "결론도출근거" bucket -- see split_sections_kgaap
+#     above) so retained_text_for_coverage's existing SECTION_KEYS-based
+#     accounting needs no VAS-specific change at all.
+# No standard has both an authoritative and a disclaimed appendix (unlike
+# K-IFRS's 1007), and no VAS document has anything resembling a
+# 결론도출근거/적용사례(BC/IE) section separate from its numbered đoạn body --
+# confirmed 0 occurrences of either term, or of any other standalone-heading
+# "dropped content" shape, anywhere in the 26 real files -- VAS's own body
+# freely embeds "Ví dụ:" (example:) prose inline within a numbered đoạn
+# instead of factoring it into a separate non-authoritative section the way
+# K-IFRS's 적용사례 does.
+# ---------------------------------------------------------------------------
+
+# Trailing `\s+` (not `[ \t]+`) is deliberate and DOES cross a newline:
+# confirmed real case, VAS 21 đoạn 02 -- "02." followed by a run of 13
+# non-breaking-space padding characters (see normalize_nbsp_vas above; this
+# is checked AFTER that normalization runs) and then a real line break before
+# its own body text starts on the next line ("02. \nChuẩn mực này áp dụng...").
+# A same-line-only `[ \t]+` (tried first) misses this and every marker shaped
+# like it. Allowing `\s+` to cross a newline reopens the K-IFRS-style risk of
+# a cross-reference number wrap (e.g. "...theo đoạn\n55.") being mistaken for
+# a real marker -- confirmed real case, VAS 11's own 본문 (see module comment
+# above) -- but that risk is fully absorbed by chunk.py's `_vas_marks`
+# monotonic filter instead: a genuine đoạn/phụ-lục sequence is confirmed
+# strictly increasing in every one of the 26 real files, so ANY
+# non-increasing candidate this looser pattern turns up is safely rejected
+# there without ever rejecting a real marker.
+VAS_PLAIN_PARA_RE = re.compile(r"(?m)^[ \t]*(\d{1,3})\.\s+(?=\S)")
+VAS_TABLE_PARA_RE = re.compile(r"(?m)^[ \t]*\|[ \t]*(\d{1,3})\.[ \t]*\|")
+
+# Phụ lục (appendix) guidance paragraphs: a single letter + 1-3 digits, e.g.
+# "A1." .. "A17." (VAS 11's Phụ lục A -- the only VAS appendix with real
+# guidance content; see module comment above). Independently defined (not
+# reused from K-IFRS's own LETTER_PARA_RE in chunk.py) since VAS's own
+# appendix convention (confirmed: only ever a single letter "A" is used
+# anywhere in the corpus, never "B"/"C") has no BC/IE-prefix collision risk to
+# guard against the way K-IFRS's pattern does. Same `\s+` rationale as
+# VAS_PLAIN_PARA_RE above.
+VAS_GUIDANCE_PARA_RE = re.compile(r"(?m)^[ \t]*([A-Z]\d{1,3})\.\s+(?=\S)")
+
+# Missing-space-after-marker fix, VAS's OWN counterpart to chunk.py's
+# normalize_missing_space (independently defined, not reused/extended -- VAS's
+# own marker shape carries a literal "." K-IFRS's own bare-digit markers never
+# do, so the two are not interchangeable). 4 confirmed real occurrences across
+# the 26 files: đoạn 1 of VAS 29 ("01.Mục đích..."), đoạn 2 of VAS 05
+# ("02.Chuẩn mực..."), đoạn 28 of VAS 11 ("28.Giá phí..."), đoạn 35 of VAS 27
+# ("35.Thủ tục...") -- always "NN.Word" with zero space, at a genuine
+# line start. The lookahead excludes a following digit (never mid-decimal --
+# VAS paragraph numbers are always plain integers, unlike K-IFRS's own
+# "5.5.1"-style decimals, so this is a safe, sufficient guard) as well as
+# whitespace (already-correct markers are always a no-op). MUST run BEFORE
+# strip_frontmatter_vas's own marker search: VAS 29's đoạn 1 is affected, and
+# if left unfixed its own frontmatter-cutter would find đoạn 2 as the
+# earliest "value==1"... no -- worse, it would never find a value==1 match at
+# all (đoạn 1 itself is the only one), silently treating the entire real
+# đoạn 1 as still-undropped frontmatter instead of merely mis-numbering it.
+_VAS_MISSING_SPACE_RE = re.compile(r"(?m)^([ \t]*\d{1,3}\.)(?=[^\s\d])")
+
+
+def normalize_missing_space_vas(text):
+    """Insert the space some VAS source pages drop after a leading đoạn
+    marker (e.g. "01.Mục đích..." -> "01. Mục đích..."). See
+    _VAS_MISSING_SPACE_RE above for the 4 confirmed real occurrences this
+    fixes. Safe to run unconditionally on the full raw page text (including
+    still-unstripped frontmatter): no Decision-citation/title-block text in
+    any of the 26 real files contains a digit run immediately followed by a
+    literal "." and then a non-space, non-digit character (dates in these
+    documents are always spelled "ngày 31 tháng 12 năm 2002" or slash-
+    separated "31/12/2002", never dot-separated)."""
+    return _VAS_MISSING_SPACE_RE.sub(lambda m: m.group(1) + " ", text)
+
+
+# Some (not all -- confirmed present in 21 of the 26 real files, ranging from
+# a single stray occurrence to 723 in VAS 17) source pages render `&nbsp;` as
+# a literal U+00A0 NO-BREAK SPACE character instead of a plain ASCII space --
+# a legacy Word/HTML-authoring artifact of the source pages, not meaningful
+# Vietnamese text content. Confirmed to sit directly after a real đoạn marker
+# in several files too (e.g. VAS 17: 60 of its 64 markers, VAS 28: 61 of 76),
+# where it silently defeats VAS_PLAIN_PARA_RE/VAS_TABLE_PARA_RE/
+# VAS_GUIDANCE_PARA_RE's own `[ \t]+` (deliberately ASCII-only, so a marker
+# regex can never cross a newline -- see module comment above): Python's `\s`
+# DOES match U+00A0, but `[ \t]` does not, so "03.\xa0Chuẩn mực..." silently
+# failed to match any marker shape at all, mis-merging đoạn 03 into the tail
+# of đoạn 02's own chunk (confirmed real case: VAS 05 đoạn 03/06, VAS 17,
+# VAS 22/25/27/28's own markers, VAS 04/19/21 -- 21 of 26 files affected to
+# some degree). Normalized to a plain space UNCONDITIONALLY on the full raw
+# page text, before any marker search runs (including the missing-space fix
+# above, whose own negative-lookahead already treats \xa0 as "already has a
+# space" and so correctly no-ops on these -- normalizing first means neither
+# fix has to special-case the other). Not a verbatim-text violation: U+00A0
+# renders visually identical to a plain space in every real display context,
+# carries no independent Vietnamese-language meaning of its own, and leaving
+# it un-normalized does actual fidelity harm (silently wrong paragraph
+# boundaries) rather than preserving anything meaningful.
+_VAS_NBSP_RE = re.compile("\xa0")  # U+00A0 NO-BREAK SPACE (explicit escape, not a literal embedded char)
+
+
+def normalize_nbsp_vas(text):
+    return _VAS_NBSP_RE.sub(" ", text)
+
+
+def _vas_para_matches(text):
+    """Merge VAS_PLAIN_PARA_RE + VAS_TABLE_PARA_RE matches (both share group 1
+    = the bare integer marker) into one position-ordered list of (value:int,
+    match) tuples. Shared by strip_frontmatter_vas (locating where the real
+    body starts) and chunk.py's VAS chunker (locating every 본문 boundary) so
+    the two can never drift out of sync with each other."""
+    ms = list(VAS_PLAIN_PARA_RE.finditer(text)) + list(VAS_TABLE_PARA_RE.finditer(text))
+    ms.sort(key=lambda m: m.start())
+    return [(int(m.group(1)), m) for m in ms]
+
+
+# KrestonVN's own site-chrome header line, present verbatim at the very start
+# of every one of the 26 real files -- see module comment above. Used only as
+# an informational drop_info flag (mirroring strip_frontmatter's own
+# "copyright_removed" flag for K-IFRS's IFRS Foundation block); the actual
+# cut point is always the first real đoạn marker, independent of whether this
+# line is found. Also reused (imported, not redefined -- same discipline as
+# every CAS-specific regex tools/ingest/fidelity.py already imports from this
+# module) as one of fidelity.py's own VAS leak signatures: a defense-in-depth
+# backstop in case strip_frontmatter_vas's own value==1 anchor is ever missed
+# entirely (e.g. a future 27th standard whose text has no detectable marker
+# at all, degrading strip_frontmatter_vas to a no-op -- see its own docstring).
+_VAS_SITE_CHROME_RE = re.compile(r"Chuyên trang văn bản pháp luật kế toán kiểm toán")
+
+# Same defense-in-depth rationale as _VAS_SITE_CHROME_RE immediately above,
+# for the OTHER two boilerplate shapes strip_frontmatter_vas's own value==1
+# anchor already structurally excludes from any kept region: VAS 29's own
+# Decision-document preamble (see module comment above -- "BỘ TÀI CHÍNH |
+# CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM" letterhead, "QUYẾT ĐỊNH CỦA BỘ TRƯỞNG BỘ
+# TÀI CHÍNH" heading -- neither phrase can ever legitimately appear inside a
+# real đoạn's own regulatory prose), and VAS 24's own excluded Phụ lục 1/2
+# cash-flow-statement form-template heading (see split_sections_vas above --
+# structurally excluded already since neither block contains a
+# VAS_GUIDANCE_PARA_RE marker, checked again here as a backstop the same way
+# K-IFRS's own 부록 negation check is).
+_VAS_DECISION_PREAMBLE_RE = re.compile(
+    r"CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM|QUYẾT ĐỊNH CỦA BỘ TRƯỞNG BỘ TÀI CHÍNH")
+_VAS_FORM_TEMPLATE_RE = re.compile(r"BÁO\s*\n?\s*CÁO LƯU CHUYỂN TIỀN TỆ \(MẪU")
+
+
+def strip_frontmatter_vas(text):
+    """Remove the KrestonVN site-chrome header, the duplicate "VAS NN -
+    <title>" line, the standard's own title block, the "(Ban hành...)"
+    Decision citation, the "QUY ĐỊNH CHUNG" heading, and (VAS 29 only) the
+    full Decision-document preamble ahead of all of the above -- by cutting
+    at the position of the FIRST genuine đoạn marker (value == 1) rather than
+    anchoring on any of that boilerplate's own (inconsistently-worded) text.
+    See module comment above for why this is safe.
+
+    Returns (kept_text, dropped_info) -- same shape as strip_frontmatter()'s
+    own return value, so callers do not need to special-case the GAAP.
+    Degrades to a no-op (matching every other stripper's own degrade path) if
+    no value==1 marker is found at all."""
+    text = normalize_nbsp_vas(text)
+    text = normalize_missing_space_vas(text)
+    info = {"copyright_removed": False, "toc_removed": False, "toc_anchor": None,
+            "chars_dropped": 0, "dropped_text": ""}
+    first_one = next((m for v, m in _vas_para_matches(text) if v == 1), None)
+    if first_one is None:
+        return text, info
+    cut = first_one.start()
+    info["copyright_removed"] = bool(_VAS_SITE_CHROME_RE.search(text[:cut]))
+    info["chars_dropped"] = cut
+    info["dropped_text"] = text[:cut]
+    return text[cut:], info
+
+
+# See module comment above: real headings are always rendered in full
+# uppercase ("PHỤ\nLỤC A", "PHỤ\nLỤC 1", "PHỤ\nLỤC 2" -- confirmed
+# line-wrapped between "PHỤ" and "LỤC" in every real occurrence), which this
+# pattern requires (deliberately case-SENSITIVE, unlike every loose() anchor
+# above) specifically so it never matches an inline mixed-case prose
+# cross-reference like "...hướng dẫn trong Phụ lục A về việc..." (confirmed:
+# 4 such inline mentions in VAS 11 alone, 0 false matches).
+_VAS_APPENDIX_HEAD_RE = re.compile(r"(?m)^[ \t]*PHỤ[ \t\n]+LỤC")
+
+
+def split_sections_vas(text):
+    """Split already-frontmatter-stripped VAS body text into 본문 + any Phụ
+    lục (appendix) blocks, classified per-block as 적용지침 (kept -- contains
+    at least one real VAS_GUIDANCE_PARA_RE letter-numbered marker, e.g. VAS
+    11's Phụ lục A) or 적용사례 (dropped -- a blank form template with no
+    guidance markers at all, e.g. VAS 24's Phụ lục 1/2; see module comment
+    above for why this bucket name is reused as a labeling convenience only).
+    결론도출근거 is always empty for VAS (no such section exists in any real
+    file). Multiple consecutive appendix blocks of the same classification
+    extend one region rather than fragmenting it, same convention every other
+    GAAP's own split_sections* uses."""
+    heads = [m.start() for m in _VAS_APPENDIX_HEAD_RE.finditer(text)]
+    boundaries = [(0, "본문")]
+    for i, pos in enumerate(heads):
+        end = heads[i + 1] if i + 1 < len(heads) else len(text)
+        label = "적용지침" if VAS_GUIDANCE_PARA_RE.search(text[pos:end]) else "적용사례"
+        if boundaries[-1][1] != label:
+            boundaries.append((pos, label))
+
+    regions = {k: [] for k in SECTION_KEYS}
+    for i, (start, name) in enumerate(boundaries):
+        end = boundaries[i + 1][0] if i + 1 < len(boundaries) else len(text)
+        regions[name].append(text[start:end])
+    return {k: "".join(v) for k, v in regions.items()}

@@ -13,7 +13,8 @@ from dataclasses import replace
 # ...`) is safe as a module-level import.
 from .segment import (_BC_DIVIDER_RE, _IE_DIVIDER_RE, _BOARD_RESOLUTION_RE, _COPYRIGHT_TAIL_RE,
                        _KGAAP_DISSENT_DIVIDER_RE, _CAS_FOOTER_RE, _CAS_MEMO_RE,
-                       _CAS_XMU_SOURCE_URL_ROW_RE)
+                       _CAS_XMU_SOURCE_URL_ROW_RE, _VAS_SITE_CHROME_RE,
+                       _VAS_DECISION_PREAMBLE_RE, _VAS_FORM_TEMPLATE_RE)
 
 class FidelityError(Exception):
     pass
@@ -67,8 +68,12 @@ def retained_text_for_coverage(raw_text, gaap="K-IFRS"):
     routes through strip_frontmatter_cas/split_sections_cas (see that
     module's CAS comment -- split_sections_cas always returns 본문=full text
     and the other three regions empty, so the "retained" baseline here is
-    just the frontmatter-stripped text in full); every other gaap keeps the
-    original K-IFRS-shaped path unchanged.
+    just the frontmatter-stripped text in full); `gaap="VAS"` routes through
+    strip_frontmatter_vas/split_sections_vas (see that module's VAS comment --
+    VAS 24's own excluded Phụ lục 1/2 form templates land in the "적용사례"
+    drop-bucket here, same labeling-convenience-only reuse K-GAAP's own
+    소수의견 already established for "결론도출근거"); every other gaap keeps
+    the original K-IFRS-shaped path unchanged.
 
     Import is local to avoid a module-load cycle (chunk.py imports this
     module for flag_oversized_chunks)."""
@@ -80,6 +85,10 @@ def retained_text_for_coverage(raw_text, gaap="K-IFRS"):
         from .segment import strip_frontmatter_cas, split_sections_cas
         kept, frontmatter_info = strip_frontmatter_cas(raw_text)
         sections = split_sections_cas(kept)
+    elif gaap == "VAS":
+        from .segment import strip_frontmatter_vas, split_sections_vas
+        kept, frontmatter_info = strip_frontmatter_vas(raw_text)
+        sections = split_sections_vas(kept)
     else:
         from .segment import strip_frontmatter, split_sections
         kept, frontmatter_info = strip_frontmatter(raw_text)
@@ -208,6 +217,26 @@ _CAS_LEAK_SIGNATURES = (
     ("cas_xmu_source_url_row", _CAS_XMU_SOURCE_URL_ROW_RE, "text"),
 )
 
+# VAS-specific (see tools/ingest/segment.py's VAS module comment): reused,
+# not redefined, same discipline as every other GAAP-specific tuple above.
+# strip_frontmatter_vas's own value==1 anchor already structurally excludes
+# the KrestonVN site-chrome header and (VAS 29 only) the Decision-document
+# preamble from any kept region, and split_sections_vas already routes VAS
+# 24's own blank form-template appendices to the dropped "적용사례" bucket --
+# these three signatures are a hard backstop for each, in case that
+# structural exclusion is ever missed, not something normally expected to
+# fire. Unlike K-IFRS/K-GAAP, VAS has no paragraph_no-prefix signature to add
+# here: excluded content is dropped wholesale, before paragraph-chunking ever
+# assigns it a paragraph_no, so there is no dropped-bucket prefix convention
+# (like K-IFRS's "BC"/"IE" or K-GAAP's "결"/"사례"/"소") to check against.
+# Inert no-ops for every other GAAP: none of this Vietnamese-language
+# boilerplate can appear in Korean/English/Chinese K-IFRS/K-GAAP/CAS text.
+_VAS_LEAK_SIGNATURES = (
+    ("vas_site_chrome", _VAS_SITE_CHROME_RE, "text"),
+    ("vas_decision_preamble", _VAS_DECISION_PREAMBLE_RE, "text"),
+    ("vas_form_template", _VAS_FORM_TEMPLATE_RE, "text"),
+)
+
 # name -> (matcher, where) -- "text" matchers run against record.text,
 # "paragraph_no" matchers run against record.paragraph_no.
 _LEAK_SIGNATURES = (
@@ -222,7 +251,7 @@ _LEAK_SIGNATURES = (
     # K-GAAP-specific (see above) -- inert no-ops for every other GAAP.
     ("kgaap_dissent_divider", _KGAAP_DISSENT_DIVIDER_RE, "text"),
     ("paragraph_no_kgaap_dropped", _KGAAP_LEAK_PARAGRAPH_NO_RE, "paragraph_no"),
-) + _CAS_LEAK_SIGNATURES
+) + _CAS_LEAK_SIGNATURES + _VAS_LEAK_SIGNATURES
 
 
 def detect_leaks(records):

@@ -207,3 +207,42 @@ def test_download_cas_url_gets_plain_url_and_forwards_referer(monkeypatch, tmp_p
     assert calls["url"] == "https://upload-news.esnai.cn/x.pdf"
     assert calls["headers"]["Referer"] == "https://www.casc.org.cn/notice.shtml"
     assert dest.read_bytes() == b"cas-fake-bytes"
+
+
+def test_vas_registry_is_the_complete_enumeration():
+    # Full enumeration of the 26 issued VAS (numbers 01-30; 09/12/13/20 were
+    # never issued -- not a gap in this registry, this is the complete real
+    # set), each scraped from its own docs.kreston.vn page -- see sources.py's
+    # VAS registry docstring for the full 5-Decision/5-batch provenance
+    # writeup. 정공법: nothing is arbitrarily trimmed from this registry.
+    standards = get_source("VAS")["standards"]
+    assert len(standards) == 26
+
+    nos = [s["no"] for s in standards]
+    assert len(set(nos)) == len(nos), "duplicate standard_no in VAS registry"
+    assert sorted(nos, key=int) == ["01", "02", "03", "04", "05", "06", "07", "08", "10", "11",
+                                     "14", "15", "16", "17", "18", "19", "21", "22", "23", "24",
+                                     "25", "26", "27", "28", "29", "30"]
+
+    for std in standards:
+        assert std["title"]
+        assert std["url"].startswith("https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-")
+        assert std["format"] == "html"
+        assert std["tier"] == "본문"
+        assert std["decision_no"].endswith("/QĐ-BTC")
+        assert std["decision_date"]
+        assert std["as_of"]
+
+    # every standard traces to exactly one of 5 promulgating Decisions, in 5
+    # issuance batches (đợt) -- see registry docstring for the per-batch
+    # membership this cross-checks.
+    by_decision = {}
+    for s in standards:
+        by_decision.setdefault(s["decision_no"], []).append(s["no"])
+    assert len(by_decision) == 5
+    assert sorted(len(v) for v in by_decision.values()) == [4, 4, 6, 6, 6]
+    assert by_decision["149/2001/QĐ-BTC"] == ["02", "03", "04", "14"]
+    assert by_decision["165/2002/QĐ-BTC"] == ["01", "06", "10", "15", "16", "24"]
+    assert by_decision["234/2003/QĐ-BTC"] == ["05", "07", "08", "21", "25", "26"]
+    assert by_decision["12/2005/QĐ-BTC"] == ["17", "22", "23", "27", "28", "29"]
+    assert by_decision["100/2005/QĐ-BTC"] == ["11", "18", "19", "30"]

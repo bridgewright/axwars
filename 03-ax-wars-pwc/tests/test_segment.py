@@ -1,7 +1,10 @@
 from tools.ingest.segment import (strip_frontmatter, split_sections, SECTION_KEYS,
                                    _strip_chapter_toc_previews, _TOC_SCAN_BOUND,
                                    strip_frontmatter_kgaap, split_sections_kgaap,
-                                   strip_frontmatter_cas, split_sections_cas)
+                                   strip_frontmatter_cas, split_sections_cas,
+                                   strip_frontmatter_vas, split_sections_vas,
+                                   VAS_PLAIN_PARA_RE, VAS_TABLE_PARA_RE, VAS_GUIDANCE_PARA_RE,
+                                   normalize_missing_space_vas, normalize_nbsp_vas)
 
 # Small synthetic fixture mirroring the REAL structure confirmed against the
 # downloaded kifrs_1002/1019/1116 PDFs/HWPs: cover + bilingual copyright +
@@ -664,3 +667,170 @@ def test_split_sections_cas_always_returns_full_text_as_bonmun():
     assert set(sections) == set(SECTION_KEYS)
     assert sections["본문"] == text
     assert sections["적용지침"] == sections["결론도출근거"] == sections["적용사례"] == ""
+
+
+# ---------------------------------------------------------------------------
+# VAS (Vietnamese Accounting Standards) segmentation -- mirrors the real
+# structure confirmed against all 26 downloaded docs.kreston.vn pages: a
+# KrestonVN site-chrome header + duplicate title line + standard title block
+# + "(Ban hành...)" Decision citation + "QUY ĐỊNH CHUNG" heading, THEN đoạn
+# 01 itself. See tools/ingest/segment.py's VAS module comment for the full
+# structural writeup.
+# ---------------------------------------------------------------------------
+
+def test_vas_plain_para_re_matches_digit_dot_markers():
+    text = "01. Mục đích của chuẩn mực.\n02. Phạm vi áp dụng.\n"
+    matches = [m.group(1) for m in VAS_PLAIN_PARA_RE.finditer(text)]
+    assert matches == ["01", "02"]
+
+
+def test_vas_table_para_re_requires_an_immediately_closing_cell():
+    # THE KNOWN BUG this guards against: VAS 23's real table-style marker
+    # ("| 01. | Mục đích... |" -- the marker's OWN cell has nothing but the
+    # bare number) must match, but VAS 21 đoạn 51's real embedded list
+    # ("| 1. Tiền và các khoản tương đương tiền; |  |" -- the list item's
+    # own number and its text sit TOGETHER in the same cell) must NOT --
+    # otherwise every list item is mis-detected as a new đoạn boundary. See
+    # tools/ingest/segment.py's VAS module comment for the full writeup.
+    real_marker = "| 01. | Mục đích của chuẩn mực này. | \n"
+    list_item = "| 1. Tiền và các khoản tương đương tiền; |  | \n"
+    assert [m.group(1) for m in VAS_TABLE_PARA_RE.finditer(real_marker)] == ["01"]
+    assert list(VAS_TABLE_PARA_RE.finditer(list_item)) == []
+    # a list item's own line-start "|" also blocks the PLAIN pattern (which
+    # requires a digit directly at line start, never "|")
+    assert list(VAS_PLAIN_PARA_RE.finditer(list_item)) == []
+
+
+def test_vas_guidance_para_re_matches_letter_digit_markers():
+    text = "A1. Như đã quy định trong đoạn 21.\nA2. Doanh nghiệp áp dụng.\n"
+    matches = [m.group(1) for m in VAS_GUIDANCE_PARA_RE.finditer(text)]
+    assert matches == ["A1", "A2"]
+
+
+def test_normalize_missing_space_vas_inserts_space_after_marker():
+    # Confirmed real occurrence: VAS 29 đoạn 1 renders with zero space after
+    # the marker ("01.Mục đích..."), which would otherwise defeat
+    # VAS_PLAIN_PARA_RE's own `\s+` requirement.
+    assert normalize_missing_space_vas("01.Mục đích của Chuẩn mực này.") == \
+        "01. Mục đích của Chuẩn mực này."
+    # already-correct text is a no-op
+    assert normalize_missing_space_vas("01. Mục đích.") == "01. Mục đích."
+    # never fires mid-decimal (VAS paragraph numbers are always plain
+    # integers, but defensively guarded anyway)
+    assert normalize_missing_space_vas("31.12.2002") == "31.12.2002"
+
+
+def test_normalize_nbsp_vas_converts_to_regular_space():
+    # Confirmed real occurrence: several source pages (e.g. VAS 21 đoạn 02,
+    # VAS 17) render `&nbsp;` as a literal U+00A0 after a đoạn marker, which
+    # defeats every VAS_*_PARA_RE's own character classes (Python's `\s`
+    # matches U+00A0, but the plain ASCII `[ \t]` some of those classes use
+    # does not).
+    text = "02.  Chuẩn mực này áp dụng."
+    normalized = normalize_nbsp_vas(text)
+    assert " " not in normalized
+    assert normalized == "02.  Chuẩn mực này áp dụng."
+
+
+_VAS_PLAIN_DOC = """Chuyên trang văn bản pháp luật kế toán kiểm toán
+VAS 99 - Chuẩn mực thử nghiệm
+CHUẨN MỰC KẾ TOÁN VIỆT NAM SỐ 99
+CHUẨN MỰC THỬ NGHIỆM
+(Ban hành và công bố theo Quyết định số 999/2005/QĐ-BTC
+ngày 01 tháng 01 năm 2005 của Bộ trưởng Bộ Tài chính, và
+có hiệu lực thi hành từ ngày 01/02/2005)
+QUY ĐỊNH CHUNG
+01. Mục đích của chuẩn mực này là quy định việc thử nghiệm.
+02. Phạm vi áp dụng cho mọi doanh nghiệp.
+"""
+
+
+def test_strip_frontmatter_vas_cuts_at_first_doan_one():
+    kept, info = strip_frontmatter_vas(_VAS_PLAIN_DOC)
+    assert kept.startswith("01. Mục đích")
+    assert info["copyright_removed"] is True  # site-chrome line was in the dropped region
+    assert "Chuyên trang văn bản pháp luật" not in kept
+    assert "QUY ĐỊNH CHUNG" not in kept
+    assert "999/2005/QĐ-BTC" not in kept
+    assert "02. Phạm vi áp dụng" in kept
+
+
+_VAS_DECISION_PREAMBLE_DOC = """Chuyên trang văn bản pháp luật kế toán kiểm toán
+VAS 99 - Chuẩn mực thử nghiệm
+| BỘ TÀI CHÍNH |  | CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM | 
+| Số: 999/2005/QĐ-BTC |  | Độc lập - Tự do - Hạnh phúc | 
+QUYẾT ĐỊNH CỦA BỘ TRƯỞNG BỘ TÀI CHÍNH
+Về việc ban hành và công bố một (01) chuẩn mực kế toán Việt Nam
+CHUẨN MỰC SỐ 99
+CHUẨN MỰC THỬ NGHIỆM
+QUY ĐỊNH CHUNG
+01.Mục đích của chuẩn mực này là quy định việc thử nghiệm.
+02. Phạm vi áp dụng cho mọi doanh nghiệp.
+"""
+
+
+def test_strip_frontmatter_vas_drops_the_full_decision_preamble():
+    # Mirrors VAS 29's real structure: the full Decision document's own
+    # preamble (letterhead table, "QUYẾT ĐỊNH CỦA BỘ TRƯỞNG BỘ TÀI CHÍNH")
+    # sits ahead of the standard's own title block. Also exercises the
+    # missing-space bug ("01.Mục đích...") together with the frontmatter cut
+    # in one fixture, since VAS 29 has both simultaneously for real.
+    kept, info = strip_frontmatter_vas(_VAS_DECISION_PREAMBLE_DOC)
+    assert kept.startswith("01. Mục đích")
+    assert "BỘ TÀI CHÍNH" not in kept
+    assert "QUYẾT ĐỊNH CỦA BỘ TRƯỞNG" not in kept
+    assert "CHUẨN MỰC SỐ 99" not in kept
+
+
+def test_strip_frontmatter_vas_degrades_to_noop_without_any_doan_one():
+    # No value==1 marker anywhere -- degrades to a no-op (matching every
+    # other stripper's own degrade path), never guesses at a cut point.
+    text = "Một đoạn văn bản không có đánh số đoạn nào cả."
+    kept, info = strip_frontmatter_vas(text)
+    assert kept == text
+    assert info["chars_dropped"] == 0
+
+
+_VAS_APPENDIX_GUIDANCE_DOC = """01. Mục đích của chuẩn mực này.
+02. Phạm vi áp dụng.
+PHỤ
+LỤC A
+Hướng dẫn bổ sung
+A1. Như đã quy định trong đoạn 01, đây là hướng dẫn bổ sung.
+A2. Tiếp tục hướng dẫn.
+"""
+
+_VAS_APPENDIX_FORM_DOC = """01. Mục đích của chuẩn mực này.
+02. Phạm vi áp dụng.
+PHỤ
+LỤC 1
+(Mẫu Báo cáo lưu chuyển tiền tệ)
+BÁO
+CÁO LƯU CHUYỂN TIỀN TỆ (MẪU 1)
+| Chỉ tiêu | Mã số | Kỳ trước | Kỳ này | 
+| 1. Tiền thu từ bán hàng | 01 |  |  | 
+"""
+
+
+def test_split_sections_vas_routes_lettered_appendix_to_guidance_tier():
+    # VAS 11's real Phụ lục A shape: contains genuine A1./A2. lettered
+    # guidance markers -- KEPT, tier=적용지침.
+    sections = split_sections_vas(_VAS_APPENDIX_GUIDANCE_DOC)
+    assert set(sections) == set(SECTION_KEYS)
+    assert "01. Mục đích" in sections["본문"]
+    assert "PHỤ" not in sections["본문"]
+    assert "A1. Như đã quy định" in sections["적용지침"]
+    assert "A2. Tiếp tục" in sections["적용지침"]
+    assert sections["적용사례"] == "" == sections["결론도출근거"]
+
+
+def test_split_sections_vas_drops_form_template_appendix_without_markers():
+    # VAS 24's real Phụ lục 1/2 shape: a blank cash-flow-statement FORM
+    # template with no lettered guidance marker anywhere -- EXCLUDED (routed
+    # to the "적용사례" bucket as a labeling/bookkeeping convenience only,
+    # same reuse convention K-GAAP's own 소수의견 already established for
+    # "결론도출근거" -- see split_sections_vas's own docstring).
+    sections = split_sections_vas(_VAS_APPENDIX_FORM_DOC)
+    assert "01. Mục đích" in sections["본문"]
+    assert sections["적용지침"] == ""
+    assert "BÁO" in sections["적용사례"] and "CÁO LƯU CHUYỂN TIỀN TỆ" in sections["적용사례"]

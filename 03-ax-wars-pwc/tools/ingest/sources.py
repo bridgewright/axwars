@@ -675,7 +675,166 @@ SOURCES = {
          "as_of": "2026-01-01", "provenance": "official"},
         ],
     },
-    "VAS": {"lang": "vi", "format": "pdf", "base_url": "", "standards": []},
+    # VAS (Chuẩn mực kế toán Việt Nam / Vietnamese Accounting Standards) --
+    # docs.kreston.vn (Kreston Vietnam, a Kreston International member audit/
+    # accounting firm's own "văn bản pháp luật" (legal-document) reference
+    # library at docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-NN/), each
+    # page a verbatim Vietnamese-language reproduction of the original Bộ Tài
+    # chính (Ministry of Finance) Quyết định (Decision) text -- this is the
+    # OFFICIAL Vietnamese original (per the task's explicit requirement:
+    # verbatim official text, NOT a firm's English translation), confirmed by
+    # every one of the 26 downloaded pages opening with its own "(Ban hành và
+    # công bố theo Quyết định số .../QĐ-BTC ngày ... của Bộ trưởng Bộ Tài
+    # chính...)" citation -- see tools/ingest/segment.py's VAS module comment
+    # for the full structural writeup this registry was built against.
+    #
+    # Enumeration: the complete set of 26 issued VAS (numbers 01-30; 09/12/13/
+    # 20 were never issued -- no gap in this registry, this is the complete
+    # real set), scraped 2026-07-06, one page per standard. Every standard is
+    # traceable to exactly one of 5 promulgating Decisions in 5 issuance
+    # batches (đợt), cross-checked against each standard's own in-document
+    # citation (and, for đợt 4, against VAS 29's own preamble text literally
+    # reading "sáu (06) chuẩn mực kế toán Việt Nam (đợt 4)" -- 6 standards,
+    # matching the 6 counted below):
+    #   đợt 1 -- 149/2001/QĐ-BTC (2001-12-31): 02, 03, 04, 14            (4)
+    #   đợt 2 -- 165/2002/QĐ-BTC (2002-12-31): 01, 06, 10, 15, 16, 24    (6)
+    #   đợt 3 -- 234/2003/QĐ-BTC (2003-12-31): 05, 07, 08, 21, 25, 26    (6)
+    #   đợt 4 -- 12/2005/QĐ-BTC  (2005-02-15): 17, 22, 23, 27, 28, 29    (6)
+    #   đợt 5 -- 100/2005/QĐ-BTC (2005-12-25/28): 11, 18, 19, 30         (4)
+    #                                                            total = 26
+    # `decision_no`/`decision_date` record each standard's own promulgating
+    # Decision; `as_of` is that same standard's own stated effective date
+    # ("có hiệu lực thi hành từ ...") wherever its own page states one. VAS 29
+    # and VAS 30's own pages state a decision date but never separately state
+    # an effective date anywhere in their own text (confirmed: 0 occurrences
+    # of "hiệu lực" in either page's own extracted text referring to the
+    # standard's own effective date) -- `as_of` falls back to `decision_date`
+    # for exactly these two, noted per-entry below rather than silently
+    # guessed from their own batch-mates. VAS 02's own page states an
+    # effective date of 2003-01-01 despite being promulgated by the SAME
+    # đợt-1 Decision as VAS 03/04/14 (each of which states 2002-01-01) --
+    # recorded exactly as VAS 02's own page states it (per 정공법: no
+    # cross-standard "correction" of what one standard's own source text
+    # actually says), flagged here as a known cross-standard inconsistency in
+    # the source rather than silently normalized to match its batch-mates.
+    #
+    # `format` is "html" (not this GAAP dict's own stale "pdf" default from
+    # before this registry was filled in -- every real entry below overrides
+    # it) since every VAS source page is trafilatura-extracted HTML, same
+    # extract.py path CAS already uses.
+    "VAS": {
+        "lang": "vi", "format": "html", "base_url": "https://docs.kreston.vn",
+        "standards": [
+            {"no": "01", "title": "Chuẩn mực chung",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-01/",
+             "format": "html", "tier": "본문",
+             "decision_no": "165/2002/QĐ-BTC", "decision_date": "2002-12-31", "as_of": "2003-01-01"},
+            {"no": "02", "title": "Hàng tồn kho",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-02/",
+             "format": "html", "tier": "본문",
+             "decision_no": "149/2001/QĐ-BTC", "decision_date": "2001-12-31", "as_of": "2003-01-01"},
+            {"no": "03", "title": "Tài sản cố định hữu hình",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-03/",
+             "format": "html", "tier": "본문",
+             "decision_no": "149/2001/QĐ-BTC", "decision_date": "2001-12-31", "as_of": "2002-01-01"},
+            {"no": "04", "title": "Tài sản cố định vô hình",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-04/",
+             "format": "html", "tier": "본문",
+             "decision_no": "149/2001/QĐ-BTC", "decision_date": "2001-12-31", "as_of": "2002-01-01"},
+            {"no": "05", "title": "Bất động sản đầu tư",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-05/",
+             "format": "html", "tier": "본문",
+             "decision_no": "234/2003/QĐ-BTC", "decision_date": "2003-12-31", "as_of": "2004-02-15"},
+            {"no": "06", "title": "Thuê tài sản",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-06/",
+             "format": "html", "tier": "본문",
+             "decision_no": "165/2002/QĐ-BTC", "decision_date": "2002-12-31", "as_of": "2003-01-01"},
+            {"no": "07", "title": "Kế toán khoản đầu tư vào công ty liên kết",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-07/",
+             "format": "html", "tier": "본문",
+             "decision_no": "234/2003/QĐ-BTC", "decision_date": "2003-12-31", "as_of": "2004-02-15"},
+            {"no": "08", "title": "Thông tin tài chính về những khoản vốn góp liên doanh",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-08/",
+             "format": "html", "tier": "본문",
+             "decision_no": "234/2003/QĐ-BTC", "decision_date": "2003-12-31", "as_of": "2004-02-15"},
+            {"no": "10", "title": "Ảnh hưởng của việc thay đổi tỷ giá hối đoái",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-10/",
+             "format": "html", "tier": "본문",
+             "decision_no": "165/2002/QĐ-BTC", "decision_date": "2002-12-31", "as_of": "2003-01-01"},
+            {"no": "11", "title": "Hợp nhất kinh doanh",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-11/",
+             "format": "html", "tier": "본문",
+             "decision_no": "100/2005/QĐ-BTC", "decision_date": "2005-12-25", "as_of": "2006-02-05"},
+            {"no": "14", "title": "Doanh thu và thu nhập khác",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-14/",
+             "format": "html", "tier": "본문",
+             "decision_no": "149/2001/QĐ-BTC", "decision_date": "2001-12-31", "as_of": "2002-01-01"},
+            {"no": "15", "title": "Hợp đồng xây dựng",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-15/",
+             "format": "html", "tier": "본문",
+             "decision_no": "165/2002/QĐ-BTC", "decision_date": "2002-12-31", "as_of": "2003-01-01"},
+            {"no": "16", "title": "Chi phí đi vay",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-16/",
+             "format": "html", "tier": "본문",
+             "decision_no": "165/2002/QĐ-BTC", "decision_date": "2002-12-31", "as_of": "2003-01-01"},
+            {"no": "17", "title": "Thuế thu nhập doanh nghiệp",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-17/",
+             "format": "html", "tier": "본문",
+             "decision_no": "12/2005/QĐ-BTC", "decision_date": "2005-02-15", "as_of": "2005-03-23"},
+            {"no": "18", "title": "Các khoản dự phòng, tài sản và nợ tiềm tàng",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-18/",
+             "format": "html", "tier": "본문",
+             "decision_no": "100/2005/QĐ-BTC", "decision_date": "2005-12-28", "as_of": "2006-02-05"},
+            {"no": "19", "title": "Hợp đồng bảo hiểm",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-19/",
+             "format": "html", "tier": "본문",
+             "decision_no": "100/2005/QĐ-BTC", "decision_date": "2005-12-28", "as_of": "2006-02-05"},
+            {"no": "21", "title": "Trình bày Báo cáo tài chính",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-21/",
+             "format": "html", "tier": "본문",
+             "decision_no": "234/2003/QĐ-BTC", "decision_date": "2003-12-31", "as_of": "2004-02-15"},
+            {"no": "22", "title": "Trình bày bổ sung báo cáo tài chính của các ngân hàng và tổ chức tài chính tương tự",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-22/",
+             "format": "html", "tier": "본문",
+             "decision_no": "12/2005/QĐ-BTC", "decision_date": "2005-02-15", "as_of": "2005-03-23"},
+            {"no": "23", "title": "Các sự kiện phát sinh sau ngày kết thúc kỳ kế toán năm",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-23/",
+             "format": "html", "tier": "본문",
+             "decision_no": "12/2005/QĐ-BTC", "decision_date": "2005-02-15", "as_of": "2005-03-23"},
+            {"no": "24", "title": "Báo cáo lưu chuyển tiền tệ",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-24/",
+             "format": "html", "tier": "본문",
+             "decision_no": "165/2002/QĐ-BTC", "decision_date": "2002-12-31", "as_of": "2003-01-01"},
+            {"no": "25", "title": "Báo cáo tài chính hợp nhất và kế toán khoản đầu tư vào công ty con",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-25/",
+             "format": "html", "tier": "본문",
+             "decision_no": "234/2003/QĐ-BTC", "decision_date": "2003-12-31", "as_of": "2004-02-15"},
+            {"no": "26", "title": "Thông tin về các bên liên quan",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-26/",
+             "format": "html", "tier": "본문",
+             "decision_no": "234/2003/QĐ-BTC", "decision_date": "2003-12-31", "as_of": "2004-02-15"},
+            {"no": "27", "title": "Báo cáo tài chính giữa niên độ",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-27/",
+             "format": "html", "tier": "본문",
+             "decision_no": "12/2005/QĐ-BTC", "decision_date": "2005-02-15", "as_of": "2005-03-23"},
+            {"no": "28", "title": "Báo cáo bộ phận",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-28/",
+             "format": "html", "tier": "본문",
+             "decision_no": "12/2005/QĐ-BTC", "decision_date": "2005-02-15", "as_of": "2005-03-23"},
+            # own page states no separate effective date anywhere in its own
+            # text -- as_of falls back to decision_date (see registry note above)
+            {"no": "29", "title": "Thay đổi chính sách kế toán, ước tính kế toán và các sai sót",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-29/",
+             "format": "html", "tier": "본문",
+             "decision_no": "12/2005/QĐ-BTC", "decision_date": "2005-02-15", "as_of": "2005-02-15"},
+            # own page states no separate effective date anywhere in its own
+            # text -- as_of falls back to decision_date (see registry note above)
+            {"no": "30", "title": "Lãi trên cổ phiếu",
+             "url": "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-30/",
+             "format": "html", "tier": "본문",
+             "decision_no": "100/2005/QĐ-BTC", "decision_date": "2005-12-28", "as_of": "2005-12-28"},
+        ],
+    },
 }
 
 

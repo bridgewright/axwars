@@ -213,3 +213,61 @@ def test_assert_retained_coverage_routes_cas_through_cas_stripper():
     cov, info = assert_retained_coverage(text, recs, gaap="CAS")
     assert cov >= 0.995
     assert info["frontmatter_chars"] > 0
+
+
+# --- VAS-specific leak signatures ------------------------------------------
+
+def _vas_rec(id, standard_no, para, text, tier="본문"):
+    return Record(id=id, gaap="VAS", standard_no=standard_no, standard_title="Chuẩn mực thử nghiệm",
+                  paragraph_no=para, heading="", text=text, text_norm=text, lang="vi",
+                  tier=tier, source_url="u", as_of="2005-01-01")
+
+
+def test_assert_no_leak_catches_vas_site_chrome_residue():
+    recs = [_vas_rec("vas:99:본문:0", "99", "0",
+                     "Chuyên trang văn bản pháp luật kế toán kiểm toán\nVAS 99 - Chuẩn mực thử nghiệm")]
+    leaks = detect_leaks(recs)
+    assert len(leaks) == 1
+    assert leaks[0][1] == "vas_site_chrome"
+
+
+def test_assert_no_leak_catches_vas_decision_preamble_residue():
+    text = "BỘ TÀI CHÍNH  CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\nQUYẾT ĐỊNH CỦA BỘ TRƯỞNG BỘ TÀI CHÍNH"
+    recs = [_vas_rec("vas:99:본문:0", "99", "0", text)]
+    leaks = detect_leaks(recs)
+    assert len(leaks) == 1
+    assert leaks[0][1] == "vas_decision_preamble"
+
+
+def test_assert_no_leak_catches_vas_form_template_residue():
+    text = "PHỤ\nLỤC 1\nBÁO\nCÁO LƯU CHUYỂN TIỀN TỆ (MẪU 1)\n| Chỉ tiêu | Mã số |"
+    recs = [_vas_rec("vas:24:적용사례:0", "24", "0", text)]
+    leaks = detect_leaks(recs)
+    assert len(leaks) == 1
+    assert leaks[0][1] == "vas_form_template"
+
+
+def test_assert_no_leak_does_not_misfire_on_clean_vas_records():
+    recs = [_vas_rec("vas:01:본문:01", "01", "01",
+                     "01. Mục đích của chuẩn mực này là quy định và hướng dẫn."),
+            _vas_rec("vas:11:적용지침:A1", "11", "A1",
+                     "A1. Như đã quy định trong đoạn 21, đây là hướng dẫn bổ sung.", tier="적용지침")]
+    assert detect_leaks(recs) == []
+
+
+def test_assert_retained_coverage_routes_vas_through_vas_stripper():
+    # Regression guard for the coverage baseline itself: without routing
+    # gaap="VAS" through strip_frontmatter_vas/split_sections_vas (rather
+    # than silently falling through to the K-IFRS-shaped default path -- an
+    # IFRS-Foundation-copyright-block anchor that never fires on a
+    # KrestonVN-sourced Vietnamese page at all), the site-chrome header and
+    # Decision citation stripped by chunk_pages would still count against
+    # the coverage baseline here.
+    text = ("Chuyên trang văn bản pháp luật kế toán kiểm toán\nVAS 99 - Chuẩn mực thử nghiệm\n"
+            "CHUẨN MỰC KẾ TOÁN VIỆT NAM SỐ 99\n(Ban hành và công bố theo Quyết định số "
+            "999/2005/QĐ-BTC ngày 01 tháng 01 năm 2005 của Bộ trưởng Bộ Tài chính)\n"
+            "QUY ĐỊNH CHUNG\n01. Mục đích của chuẩn mực này.\n")
+    recs = chunk_pages([Page(text, 1, "p1")], "VAS", "99", "Chuẩn mực thử nghiệm", "vi", "u", "2005-01-01")
+    cov, info = assert_retained_coverage(text, recs, gaap="VAS")
+    assert cov >= 0.995
+    assert info["frontmatter_chars"] > 0

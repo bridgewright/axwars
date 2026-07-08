@@ -383,3 +383,161 @@ def test_chunk_pages_cas_guidance_falls_back_to_single_chunk_without_section_hea
     assert recs[0].paragraph_no == "0"
     assert recs[0].tier == "적용지침"
     assert recs[0].text == text
+
+
+# ---------------------------------------------------------------------------
+# VAS (Vietnamese Accounting Standards) chunking -- HTML-sourced (see
+# chunk_pages' own docstring), NOT K-IFRS's/K-GAAP's/CAS's. Mirrors the real
+# structure confirmed against all 26 downloaded docs.kreston.vn pages: plain
+# "01. " and table "| 01. |" đoạn numbering, at most one letter-numbered Phụ
+# lục appendix per standard. See tools/ingest/segment.py's VAS module
+# comment for the full structural writeup.
+# ---------------------------------------------------------------------------
+
+_VAS_PLAIN_DOC = """01. Mục đích của chuẩn mực này là quy định việc thử nghiệm.
+02. Phạm vi áp dụng cho mọi doanh nghiệp.
+03. Đoạn thứ ba của chuẩn mực.
+"""
+
+
+def test_chunk_pages_vas_splits_plain_doan_markers():
+    recs = chunk_pages([Page(_VAS_PLAIN_DOC, 1, "p1")], "VAS", "99", "Chuẩn mực thử nghiệm", "vi",
+                       "https://docs.kreston.vn/vbpl/ke-toan/chuan-muc-ke-toan/vas-99/", "2005-01-01")
+    assert [r.paragraph_no for r in recs] == ["01", "02", "03"]
+    assert recs[0].id == "vas:99:본문:01"
+    assert recs[0].tier == "본문"
+    assert recs[0].lang == "vi"
+    assert "Mục đích của chuẩn mực này" in recs[0].text
+    assert "Phạm vi áp dụng" in recs[1].text
+
+
+_VAS_TABLE_DOC = """| 01. | Mục đích của chuẩn mực này là quy định việc thử nghiệm. | 
+| 02. | Phạm vi áp dụng cho mọi doanh nghiệp. | 
+"""
+
+
+def test_chunk_pages_vas_table_style_document():
+    # VAS 23's real shape: EVERY đoạn rendered as a 2-column table row
+    # (marker alone in col 1, prose in col 2).
+    recs = chunk_pages([Page(_VAS_TABLE_DOC, 1, "p1")], "VAS", "23",
+                       "Các sự kiện phát sinh sau ngày kết thúc kỳ kế toán năm", "vi", "u", "2005-03-23")
+    assert [r.paragraph_no for r in recs] == ["01", "02"]
+    assert "Mục đích của chuẩn mực này" in recs[0].text
+    assert "Phạm vi áp dụng" in recs[1].text
+
+
+# THE KNOWN BUG this test guards against (see tools/ingest/segment.py's VAS
+# module comment): VAS 21 đoạn 51's real balance-sheet line-item list is
+# rendered by trafilatura as pipe-delimited table rows, e.g.
+# "| 1. Tiền và các khoản tương đương tiền; |  | ". A prior segmenter
+# attempt stripped these pipes as a "table-row normalizer" cleanup pass
+# BEFORE paragraph-marker detection ran; once stripped, "1. Tiền..." sat at
+# a bare line start indistinguishable from a real marker, fragmenting đoạn
+# 51 into 19 bogus one-line chunks instead of keeping it as ONE paragraph.
+_VAS_EMBEDDED_LIST_DOC = """50. Đoạn trước đó.
+51. Bảng cân đối kế toán phải bao
+gồm các khoản mục chủ yếu sau đây :
+| 1. Tiền và các khoản tương đương tiền; |  | 
+| 2. Các khoản đầu tư tài chính ngắn hạn; |  | 
+| 3. Các khoản phải thu thương mại và phải
+  thu khác; |  | 
+52. Các khoản mục bổ sung, các tiêu đề và số cộng chi tiết.
+"""
+
+
+def test_chunk_pages_vas_does_not_fragment_embedded_list_disguised_as_table():
+    recs = chunk_pages([Page(_VAS_EMBEDDED_LIST_DOC, 1, "p1")], "VAS", "21",
+                       "Trình bày Báo cáo tài chính", "vi", "u", "2004-02-15")
+    # exactly 3 real đoạn -- 50, 51, 52 -- NOT 50 + 19 bogus list-item
+    # fragments + 52.
+    assert [r.paragraph_no for r in recs] == ["50", "51", "52"]
+    by_para = {r.paragraph_no: r for r in recs}
+    # every list item's own text survives verbatim, pipes and all, glued
+    # onto đoạn 51 as ONE chunk (never stripped/reformatted -- see module
+    # comment on why there is no separate table-row normalizer at all)
+    doan51 = by_para["51"].text
+    assert "Tiền và các khoản tương đương tiền" in doan51
+    assert "Các khoản đầu tư tài chính ngắn hạn" in doan51
+    assert "Các khoản phải thu thương mại" in doan51
+    assert "| 1. Tiền và các khoản tương đương tiền; |  | " in doan51
+    # đoạn 52 starts clean, right after the list, not swallowed into it and
+    # not itself carrying any list-item residue
+    assert by_para["52"].text.startswith("52.")
+    assert "Tiền và các khoản tương đương tiền" not in by_para["52"].text
+
+
+# Confirmed real case (VAS 11's own 본문): a cross-reference like "...theo
+# các đoạn 50 đến\n54." or "...theo đoạn\n55." can line-wrap so the
+# referenced number lands at a line start with real trailing whitespace
+# before the next real sentence -- structurally indistinguishable from a
+# genuine marker by shape alone. Rejected via chunk.py's `_vas_marks`
+# monotonic filter: a real đoạn sequence is confirmed strictly increasing in
+# every one of the 26 real files, so a candidate that does not exceed the
+# previous KEPT candidate is always a false positive.
+_VAS_CROSS_REF_WRAP_DOC = """53. Đoạn năm mươi ba nội dung thật.
+54. Đoạn năm mươi tư nội dung thật.
+55. Đoạn năm mươi lăm nội dung thật, được hạch toán theo các đoạn 50 đến
+54. Phần lớn hơn giữa phần sở hữu của bên mua sẽ được hạch toán theo đoạn
+55.
+Lợi ích của cổ đông thiểu số
+56. Đoạn năm mươi sáu nội dung thật.
+"""
+
+
+def test_chunk_pages_vas_rejects_cross_reference_line_wrap_false_positive():
+    recs = chunk_pages([Page(_VAS_CROSS_REF_WRAP_DOC, 1, "p1")], "VAS", "11",
+                       "Hợp nhất kinh doanh", "vi", "u", "2006-02-05")
+    # exactly 53, 54, 55, 56 -- the two cross-reference-wrapped "54."/"55."
+    # candidates inside đoạn 55's own prose must NOT create extra chunks or
+    # truncate đoạn 55 early.
+    assert [r.paragraph_no for r in recs] == ["53", "54", "55", "56"]
+    by_para = {r.paragraph_no: r for r in recs}
+    assert "được hạch toán theo các đoạn 50 đến" in by_para["55"].text
+    assert "Lợi ích của cổ đông thiểu số" in by_para["55"].text
+    assert by_para["56"].text.startswith("56.")
+
+
+_VAS_GUIDANCE_DOC = """01. Mục đích của chuẩn mực này.
+PHỤ
+LỤC A
+Hướng dẫn bổ sung
+A1. Như đã quy định trong đoạn 01, đây là hướng dẫn bổ sung.
+A2. Tiếp tục hướng dẫn bổ sung.
+"""
+
+
+def test_chunk_pages_vas_guidance_tier_letter_markers():
+    recs = chunk_pages([Page(_VAS_GUIDANCE_DOC, 1, "p1")], "VAS", "11", "Hợp nhất kinh doanh", "vi",
+                       "u", "2006-02-05")
+    by_tier = {}
+    for r in recs:
+        by_tier.setdefault(r.tier, []).append(r)
+    assert [r.paragraph_no for r in by_tier["본문"]] == ["01"]
+    guidance_paras = [r.paragraph_no for r in by_tier["적용지침"]]
+    assert "A1" in guidance_paras and "A2" in guidance_paras
+    by_para = {r.paragraph_no: r for r in by_tier["적용지침"]}
+    assert by_para["A1"].id == "vas:11:적용지침:A1"
+    assert "hướng dẫn bổ sung" in by_para["A1"].text
+
+
+_VAS_FORM_TEMPLATE_DOC = """01. Mục đích của chuẩn mực này.
+PHỤ
+LỤC 1
+(Mẫu Báo cáo lưu chuyển tiền tệ)
+BÁO
+CÁO LƯU CHUYỂN TIỀN TỆ (MẪU 1)
+| Chỉ tiêu | Mã số | Kỳ trước | Kỳ này | 
+| 1. Tiền thu từ bán hàng | 01 |  |  | 
+"""
+
+
+def test_chunk_pages_vas_excludes_form_template_appendix_entirely():
+    # VAS 24's real Phụ lục 1/2 shape: a blank statutory form template with
+    # no lettered guidance marker at all -- excluded from BOTH tiers, same
+    # "not citable paragraph text" treatment K-GAAP's own excluded
+    # "영문양식" registry entry gets.
+    recs = chunk_pages([Page(_VAS_FORM_TEMPLATE_DOC, 1, "p1")], "VAS", "24",
+                       "Báo cáo lưu chuyển tiền tệ", "vi", "u", "2003-01-01")
+    assert [r.paragraph_no for r in recs] == ["01"]
+    assert not any("BÁO" in r.text and "LƯU CHUYỂN TIỀN TỆ" in r.text for r in recs)
+    assert not any(r.tier == "적용지침" for r in recs)
