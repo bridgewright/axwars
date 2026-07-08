@@ -558,16 +558,10 @@ def _chunk_region_vas(text, pattern, slug, gaap, standard_no, standard_title, la
             end = marks[i + 1].start() if i + 1 < len(marks) else len(text)
             pieces.append((m.group(1), text[m.start():end].strip()))
 
-    recs = []
-    seen = {}
-    for para_no, chunk_text in pieces:
-        base_id = f"{slug}:{standard_no}:{tier}:{para_no}"
-        n = seen.get(base_id, 0)
-        seen[base_id] = n + 1
-        rec_id = base_id if n == 0 else f"{base_id}#{n + 1}"
-        recs.append(_mk(rec_id, gaap, standard_no, standard_title, para_no, chunk_text,
-                        lang, tier, source_url, as_of))
-    return recs
+    # 다른 GAAP과 동일한 경계 정리(후행 헤딩 분리→heading 재귀속, 헤딩전용 제거).
+    # 표 행("| … |")은 _is_content_line이 내용으로 취급해 파이프째 보존된다.
+    return _finalize_pieces(pieces, slug, gaap, standard_no, standard_title,
+                            lang, tier, source_url, as_of, toc)
 
 
 def _mk(rec_id, gaap, std, title, para, text, lang, tier, url, as_of, heading=""):

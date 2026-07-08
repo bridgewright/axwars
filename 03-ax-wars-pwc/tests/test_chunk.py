@@ -496,7 +496,10 @@ def test_chunk_pages_vas_rejects_cross_reference_line_wrap_false_positive():
     assert [r.paragraph_no for r in recs] == ["53", "54", "55", "56"]
     by_para = {r.paragraph_no: r for r in recs}
     assert "được hạch toán theo các đoạn 50 đến" in by_para["55"].text
-    assert "Lợi ích của cổ đông thiểu số" in by_para["55"].text
+    # "Lợi ích của cổ đông thiểu số"(소수주주지분)는 đoạn 56을 여는 절 제목 →
+    # 경계 정리 후 đoạn 55 본문에서 분리돼 đoạn 56의 heading으로 재귀속된다(무손실).
+    assert "Lợi ích của cổ đông thiểu số" not in by_para["55"].text
+    assert by_para["56"].heading == "Lợi ích của cổ đông thiểu số"
     assert by_para["56"].text.startswith("56.")
 
 
