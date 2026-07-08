@@ -1,8 +1,15 @@
 # 트랙2 (회계기준 원문 RAG 챗봇) — 재개 문서
 
-**최종 갱신:** 2026-07-08 (청커 대개편 + VAS 출처 재라벨 + 답변 고도화 스킬 + 제출 zip 재빌드까지 완료. 남은 것: 선택적 US-GAAP 원격 확장 문서화뿐)
+**최종 갱신:** 2026-07-08 (청커 대개편 + VAS 재라벨 + 답변 스킬 + **트랙1 근거 grounding** + zip 재빌드 완료. 남은 것: 선택적 US-GAAP 원격 확장 문서화뿐)
 
-## 현재 상태 — ✅ 코퍼스 대개편·출처 재라벨·답변 스킬 완료 (커밋 `4c750fa`까지)
+## 현재 상태 — ✅ 코퍼스·출처·답변스킬·근거 grounding 완료 (커밋 `3a381f0`까지)
+
+### 트랙1 근거 grounding 완료 (2026-07-08, 커밋 `2e4dc99`→`074be90`→`b0c1a85`→`3a381f0`)
+- **무엇:** 컨버터 `difference_analysis.md`의 IFRS 조항 근거를 손으로 쓴 패러프레이즈 대신 **로컬 코퍼스 원문(verbatim)** 으로 grounding(엔진-side·결정론). 아키텍처 정리: 규정 텍스트 단일 원천=코퍼스, `data/*.json`엔 포인터(`ifrs_ref`)만 primary.
+- **어떻게:** 신규 `gaap-ifrs/gaap_ifrs/basis_grounding.py`(파서+리졸버, `_ensure_importable`로 설치상태 무관 `gaap_standards_mcp.corpus` **읽기전용** 재사용) → `difference_report._basis_block(basis,corpus)` 원문 삽입/폴백 → `report.write_all(...,corpus_dir)` · `cli --corpus-dir`(자동탐색). 미조회/코퍼스 부재 → "큐레이션 요약 — 코퍼스 원문 미확인" 라벨 폴백(지어내지 않음).
+- **MCP/스킬1 불변:** `gaap_standards_mcp/**` 0줄. **회귀 게이트 통과: 트랙1 47 · 트랙2 130 · MCP 스모크 · standalone 폴백 · 결정론.** (게이트가 Task2 유입 계약회귀 `근거를 찾지 못함`도 잡아 `3a381f0`로 수정.)
+- **설계·계획:** `docs/superpowers/specs/2026-07-08-skill2-basis-grounding-design.md` · `plans/2026-07-08-skill2-basis-grounding.md`. 제출 zip 재빌드 **17.17MB**.
+- **다음 확장(선택):** prev_gaap도 포인터 추가 시 grounding, 미지원 조정 MCP 폴백, 대화형(스킬-side) 층.
 
 ### 이번 세션 완료 (2026-07-08, 커밋 `220bc57`→`723bc2f`→`4c750fa`)
 - **Task 1 — VAS 출처 재라벨(`220bc57`):** VAS source_url을 kreston 펌 URL → 공식 발행결정문 `"Bộ Tài chính, Quyết định số N/Y/QĐ-BTC"`로 전환(1180문단, 텍스트·id·벡터 불변=메타만). decision_no 삼중검증(레지스트리·kreston헤더·웹 đợt1~5 일치). day-level 날짜는 출처충돌(đợt3 30/31, 100/2005 25/28)로 인용에서 생략(추측 금지), decision_date는 provenance 보존. `run_ingest.ingest_vas`가 decision_no로 source_url 구성. 벡터 재빌드 불필요 확인(스모크 검색 정합).
