@@ -9,7 +9,7 @@ from scripts.validate_discovery import validate  # noqa: E402
 def _base():
     return {
         "meta": {"customer": "가상몰", "interviewee_role": "cs_lead", "company_size": "enterprise",
-                 "created_at": "2026-07-06", "created_by": "intake", "source_transcript": "output/transcript.jsonl"},
+                 "created_at": "2026-07-06", "created_by": "interview", "source_transcript": "output/transcript.jsonl"},
         "context": {"team_size": "4", "daily_volume": "300", "channels": ["chat"],
                     "inquiry_types": [{"type": "배송조회", "share_pct": 40, "repetitive": True}]},
         "bottlenecks": [{"scene": "프로모션 때 하루 2000건", "frequency": "피크",

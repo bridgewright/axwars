@@ -1,10 +1,10 @@
-# 🎙️ Intake — 배포 discovery 음성 인터뷰
+# 🎙️ Interview — 도입 준비 음성 인터뷰
 
 > 말로 캐내는 배포 준비.
 
 채널톡 알프 도입을 앞둔 **고객사 현업**을 실제 사람과 대화하듯 음성으로 인터뷰해, "이 고객에 알프를 어떻게 깔지"에 필요한 정보를 막연한 형용사가 아니라 **구체적인 일화**로 끌어내는 스킬. ElevenLabs Agents Platform + Claude로 동작하며 인터뷰는 **한국어**.
 
-배포 파이프라인 ①단계 — 대화에서 **`deployment-discovery.json`(계약)**을 도출해 ②단계(brief)로 넘긴다.
+배포 파이프라인 ①단계 — 대화에서 **`deployment-discovery.json`(계약)**을 도출해 ②단계(report)로 넘긴다.
 
 ## 최종 산출물
 - **transcript** (`output/transcript.jsonl` / `interview-notes.md`) — 음성 대화 turn 기록.
@@ -20,22 +20,22 @@
 ```bash
 # 1) 런타임 (uv managed 3.12)
 uv venv --python 3.12 .venv
-uv pip install -r skills/intake/requirements.txt
+uv pip install -r skills/interview/requirements.txt
 
 # 2) 인증 — ElevenLabs 대시보드 → Agents 에서 API 키
-cp skills/intake/.env.example skills/intake/.env   # ELEVENLABS_API_KEY 입력
+cp skills/interview/.env.example skills/interview/.env   # ELEVENLABS_API_KEY 입력
 
 # 3) 인터뷰어 에이전트 생성
-uv run python skills/intake/scripts/setup_agent.py --write-env
+uv run python skills/interview/scripts/setup_agent.py --write-env
 
 # 4) 인터뷰 — 브라우저(권장) 또는 CLI
-uv run python skills/intake/scripts/serve_browser.py   # 채널톡 룩, WebRTC AEC
-uv run python skills/intake/scripts/run_interview.py   # 로컬 CLI(마이크)
+uv run python skills/interview/scripts/serve_browser.py   # 채널톡 룩, WebRTC AEC
+uv run python skills/interview/scripts/run_interview.py   # 로컬 CLI(마이크)
 ```
 > `.env`·`output/`(실제 대화록)은 gitignore. 마이크·네트워크 때문에 sandbox 밖에서 실행.
 
 ## 다음 단계
-transcript → `output/deployment-discovery.json` 조립 → `python3 scripts/validate_discovery.py` 게이트 → **brief**가 두 문서(배포 계획서, 제품 인풋)를 에이전트가 각 포맷 레퍼런스대로 집필.
+transcript → `output/deployment-discovery.json` 조립 → `python3 scripts/validate_discovery.py` 게이트 → **report**가 두 문서(배포 계획서, 제품 인풋)를 에이전트가 각 포맷 레퍼런스대로 집필.
 
 ## 구성
 | 파일 | 역할 |

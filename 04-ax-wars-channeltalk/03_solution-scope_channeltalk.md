@@ -28,7 +28,7 @@
 [고객사 현업 4롤]
    │  ElevenLabs signed URL(브라우저 음성) 또는 로컬 CLI
    ▼
-스킬 1: intake   (scout distillery 포크)
+스킬 1: interview   (scout distillery 포크)
    - 인터뷰어 페르소나: ALF 배포 discovery (4롤 × 3축, grill-me)
    - 음성 인터뷰 → transcript.jsonl
    - transcript → deployment-discovery.json   (검증된 계약)
@@ -41,9 +41,9 @@
 ```
 
 - 엔진(음성·링크·transcript·validate/build 계약 패턴)은 scout에서 재활용. 교체 대상 = 인터뷰어 프롬프트 + discovery 스키마 + 두 보고서 렌더.
-- 네이밍(변경 가능): plugin `onramp` / 스킬1 `intake` / 스킬2 `handoff`.
+- 네이밍(변경 가능): plugin `alfboard` / 스킬1 `interview` / 스킬2 `handoff`.
 
-## 5. 스킬 1 — intake (인터뷰 → discovery 계약)
+## 5. 스킬 1 — interview (인터뷰 → discovery 계약)
 
 - **실행 경로 2개**(scout 계승): 브라우저(signed URL, WebRTC 에코제거, 끼어들기) = 데모용 / 로컬 CLI(마이크, `--text-only`).
 - **인터뷰어 = 고정 질문지가 아니라 목표 주도**: `deployment-discovery.json`의 빈칸(슬롯)을 grill-me로 채운다. **인터뷰 페이지에서 역할을 먼저 선택**(진입 시 어두운 배경 모달, 이후 헤더 칩으로 변경) → 선택 역할을 ElevenLabs **dynamic variable**(`role`/`role_label`/`opener`)로 전달해 **역할별 오프너·카피·흐름**으로 진행. 페이지 카피는 인터뷰 당사자에게 말 거는 톤. 연결은 `connectionType:"websocket"`(어느 환경에서든 안정 연결, 브라우저 getUserMedia가 에코 제거).
@@ -63,7 +63,7 @@ scout `criteria-spec.md` 패턴을 따르되 스키마는 배포 discovery용. `
 
 ```jsonc
 {
-  "meta": { "customer": "...", "interviewee_role": "cs_lead|exec|agent|it", "company_size": "smb|enterprise", "created_at": "YYYY-MM-DD", "created_by": "intake voice interview", "source_transcript": "output/transcript.jsonl" },
+  "meta": { "customer": "...", "interviewee_role": "cs_lead|exec|agent|it", "company_size": "smb|enterprise", "created_at": "YYYY-MM-DD", "created_by": "interview voice interview", "source_transcript": "output/transcript.jsonl" },
   "context": {            // 축 A
     "team_size": "", "daily_volume": "", "channels": [], "inquiry_types": [ { "type": "", "share_pct": 0, "repetitive": true } ]
   },
@@ -202,6 +202,6 @@ scout `criteria-spec.md` 패턴을 따르되 스키마는 배포 discovery용. `
 
 - **MVP 스코프(이번 빌드)**: 인터뷰 1회(롤 1명) → `deployment-discovery.json` 1개 → 두 보고서 렌더. 4롤 스크립트는 모두 프롬프트에 포함하되, 실행은 시작 시 고른 1개 롤로 진행.
 - **후속(범위 밖)**: 한 고객사의 여러 롤 인터뷰를 하나의 discovery로 **병합**하는 기능, 여러 고객 누적 시 `product_gaps.tag` **집계 대시보드**.
-- 네이밍 최종 확정(onramp/intake/handoff 잠정).
+- 네이밍 최종 확정(alfboard/interview/handoff 잠정).
 - ElevenLabs 계정·키(데모 환경). 사용자 준비.
 - Codex 구현 플랜은 `PLAN.md`로 별도 작성(writing-plans).

@@ -1,22 +1,22 @@
 ---
-name: brief
-description: intake 인터뷰가 만든 deployment-discovery.json을 입력으로 받아, ① 배포 계획서(deployment-brief.md, 고객 C레벨용)와 ② 본진 프로덕트팀용 제품 인풋(product-input.md, 고객 페인·니즈 + 제품 개발 시 고려사항)을 에이전트가 직접 집필한다. Use when 사용자가 "discovery로 배포 계획서를 만들어 달라", "제품 인풋 문서 뽑아 달라", "brief 산출물 생성"을 요청하거나 intake 인터뷰가 끝난 뒤 산출물이 필요할 때.
+name: report
+description: interview 인터뷰가 만든 deployment-discovery.json을 입력으로 받아, ① 배포 계획서(deployment-brief.md, 고객 C레벨용)와 ② 본진 프로덕트팀용 제품 인풋(product-input.md, 고객 페인·니즈 + 제품 개발 시 고려사항)을 에이전트가 직접 집필한다. Use when 사용자가 "discovery로 배포 계획서를 만들어 달라", "제품 인풋 문서 뽑아 달라", "report 산출물 생성"을 요청하거나 interview 인터뷰가 끝난 뒤 산출물이 필요할 때.
 ---
 
-# Brief — discovery → 두 문서 (②단계)
+# Report — discovery → 두 문서 (②단계)
 
-배포 discovery 파이프라인의 **②단계**. ①단계(**intake** 음성 인터뷰)가 만든 **`deployment-discovery.json`**을 입력으로 받아, 같은 인터뷰 하나에서 두 문서를 **에이전트가 직접 집필**한다(결정론 렌더 아님).
+도입 준비 파이프라인의 **②단계**. ①단계(**interview** 음성 인터뷰)가 만든 **`deployment-discovery.json`**을 입력으로 받아, 같은 인터뷰 하나에서 두 문서를 **에이전트가 직접 집필**한다(결정론 렌더 아님).
 
 - **`deployment-brief.md`** — 배포 계획서. 고객 C레벨(프로젝트 챔피언) 보고서. 포맷: [`references/deployment-brief-format.md`](references/deployment-brief-format.md), 원가: [`references/costing-assumptions.md`](references/costing-assumptions.md).
 - **`product-input.md`** — 본진 프로덕트팀용. 고객 페인·니즈 + 제품 개발 시 고려사항(PRD 아님). 포맷: [`references/product-input-format.md`](references/product-input-format.md).
 
-> **계약(SSOT)**: 입력 스키마는 intake가 소유 → [`../intake/references/discovery-spec.md`](../intake/references/discovery-spec.md).
+> **계약(SSOT)**: 입력 스키마는 interview가 소유 → [`../interview/references/discovery-spec.md`](../interview/references/discovery-spec.md).
 
 ## 워크플로우
 
 ### Step 0 — discovery 로드 + 검증
-1. `deployment-discovery.json` 경로 확인. 우선순위: ⓐ 사용자 지정 → ⓑ intake 산출물 `../intake/output/deployment-discovery.json` → ⓒ (테스트) 샘플 `../intake/assets/sample-discovery.json`.
-2. **검증**: `python3 ../intake/scripts/validate_discovery.py <discovery.json>`. errors면 집필 거부 → intake로 되돌아가 보강.
+1. `deployment-discovery.json` 경로 확인. 우선순위: ⓐ 사용자 지정 → ⓑ interview 산출물 `../interview/output/deployment-discovery.json` → ⓒ (테스트) 샘플 `../interview/assets/sample-discovery.json`.
+2. **검증**: `python3 ../interview/scripts/validate_discovery.py <discovery.json>`. errors면 집필 거부 → interview로 되돌아가 보강.
 
 ### Step 1 — 배포 계획서 집필 (에이전트가 직접)
 1. **반드시 먼저 읽는다**: [`references/deployment-brief-format.md`](references/deployment-brief-format.md) + [`references/costing-assumptions.md`](references/costing-assumptions.md).

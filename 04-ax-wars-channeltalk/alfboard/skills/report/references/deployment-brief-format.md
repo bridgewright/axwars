@@ -2,7 +2,7 @@
 
 > `deployment-brief.md`를 집필할 때 반드시 따르는 포맷과 원칙 정본이다.
 > 관점: **BCG 컨설턴트가 프로젝트 챔피언(고객사 C레벨)에게 보고하는 문서.** 배포팀이 "이 고객에 알프를 어떻게 깔지" 결정하는 실행 문서이자, 동시에 챔피언을 설득하는 제안서다.
-> 입력은 `deployment-discovery.json`(intake 인터뷰 산출)과 `costing-assumptions.md`(원가 가정)다. 출력은 아래 목차의 마크다운 보고서 1개다.
+> 입력은 `deployment-discovery.json`(interview 인터뷰 산출)과 `costing-assumptions.md`(원가 가정)다. 출력은 아래 목차의 마크다운 보고서 1개다.
 
 ---
 

@@ -1,6 +1,6 @@
 # 산출물 포맷 개편 — deployment-brief (C레벨 보고서화)
 
-> 확정일 2026-07-08. 이 문서는 `onramp` 플러그인의 산출물 포맷 개편 계약이다. 사용자 승인 완료(결정 1-A, 2-원가가정파일).
+> 확정일 2026-07-08. 이 문서는 `alfboard` 플러그인의 산출물 포맷 개편 계약이다. 사용자 승인 완료(결정 1-A, 2-원가가정파일).
 
 ## 목표
 
@@ -8,9 +8,9 @@
 
 ## 확정된 결정
 
-- **결정 1 — 렌더링 방식: (A) LLM 저작.** `brief` 스킬은 결정론적 Python 렌더러가 아니라, 에이전트가 discovery.json + 원가 가정을 읽어 포맷 레퍼런스대로 **직접 집필**한다. 산문 품질이 본질이라 템플릿으로는 못 낸다.
+- **결정 1 — 렌더링 방식: (A) LLM 저작.** `report` 스킬은 결정론적 Python 렌더러가 아니라, 에이전트가 discovery.json + 원가 가정을 읽어 포맷 레퍼런스대로 **직접 집필**한다. 산문 품질이 본질이라 템플릿으로는 못 낸다.
 - **결정 2 — 숫자·원가 출처.** 현황 정량(상담 수/비중/리드타임/조직)은 **인터뷰에서 캐낸다**(미확보 시 "확인 필요" 명시). 원가·마진·제시가격은 고객 인터뷰가 아니라 **채널톡 배포팀 내부 경제성**이므로 플러그인의 **원가 가정 파일**(인력 단가·라이선스·tier별 소요·최소 마진율)에 두고, 인터뷰가 캐낸 연동 공수를 곱해 산출한다.
-- **스킬 이름: `handoff` → `brief`** (기존 스킬명과 충돌 회피).
+- **스킬 이름: `handoff` → `report`** (기존 스킬명과 충돌 회피).
 
 ## 작성 원칙 (플러그인 내 모든 산출물 공통)
 
@@ -37,16 +37,16 @@
 
 ## 파일 변경 (이번 턴)
 
-- `skills/handoff/` → `skills/brief/` (git mv).
-- `skills/brief/SKILL.md` — LLM 저작 오케스트레이션으로 재작성.
-- `skills/brief/references/deployment-brief-format.md` — 새 포맷·6원칙·7섹션·우선순위 테이블·각주 용어집·원가 계산법(신규).
-- `skills/brief/references/costing-assumptions.md` — 채널톡 배포 원가 가정(신규).
-- `skills/brief/scripts/build_reports.py` — PRD 전용으로 축소(render_brief 제거). PRD는 이번엔 기존 방식 유지.
-- `skills/intake/references/discovery-spec.md` + `scripts/validate_discovery.py` — 스키마 확장(context.org, inquiry_types[].avg_leadtime, it_capacity 등, 하위호환 optional).
-- `skills/intake/prompt/interviewer-system-prompt.md` — 커버리지 맵 + 4개 롤 흐름 + grill-me 2-꼬리질문 규칙 강화(정량 현황·IT 여력·원가·세일즈 신호까지).
+- `skills/handoff/` → `skills/report/` (git mv).
+- `skills/report/SKILL.md` — LLM 저작 오케스트레이션으로 재작성.
+- `skills/report/references/deployment-brief-format.md` — 새 포맷·6원칙·7섹션·우선순위 테이블·각주 용어집·원가 계산법(신규).
+- `skills/report/references/costing-assumptions.md` — 채널톡 배포 원가 가정(신규).
+- `skills/report/scripts/build_reports.py` — PRD 전용으로 축소(render_report 제거). PRD는 이번엔 기존 방식 유지.
+- `skills/interview/references/discovery-spec.md` + `scripts/validate_discovery.py` — 스키마 확장(context.org, inquiry_types[].avg_leadtime, it_capacity 등, 하위호환 optional).
+- `skills/interview/prompt/interviewer-system-prompt.md` — 커버리지 맵 + 4개 롤 흐름 + grill-me 2-꼬리질문 규칙 강화(정량 현황·IT 여력·원가·세일즈 신호까지).
 - `samples/무브온/transcripts/*` + `deployment-discovery.json` — 정량 데이터 보강.
 - `samples/무브온/deployment-brief.md` — 새 포맷 exemplar 손집필.
-- plugin.json / README / handoff-contract 내 `handoff`→`brief` 참조 갱신.
+- plugin.json / README / handoff-contract 내 `handoff`→`report` 참조 갱신.
 
 ## 후속: product-input 재포지셔닝 (확정·구현 2026-07-08)
 
@@ -56,7 +56,7 @@
 - **변경**:
   - `product-input.prd.md` → `product-input.md` (PRD 접미사·개념 제거).
   - 렌더 방식: 결정론 `render_prd` 은퇴 → LLM 저작(배포 계획서와 동일). `build_reports.py`, `test_reports.py` 삭제.
-  - 신규 `skills/brief/references/product-input-format.md` — 작성 원칙 공유 + 5섹션(한눈에 / 고객 페인·니즈 지도 / 페인·니즈별 상세 / 관통 고려사항 / 확인·추적) + 제품 표면 어휘·태그 매핑.
+  - 신규 `skills/report/references/product-input-format.md` — 작성 원칙 공유 + 5섹션(한눈에 / 고객 페인·니즈 지도 / 페인·니즈별 상세 / 관통 고려사항 / 확인·추적) + 제품 표면 어휘·태그 매핑.
   - 스키마: `product_gaps[]`에 `product_surface` 추가(어느 제품 표면에 걸리나).
   - 무브온 `product-input.md` 새 포맷 exemplar 손집필.
   - 플러그인 내 "PRD/제언서" 표현 정리(README, plugin.json, handoff-contract, discovery-spec, SKILL).

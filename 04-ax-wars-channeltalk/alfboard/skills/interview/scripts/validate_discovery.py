@@ -52,7 +52,7 @@ def validate(data):
         warnings.append("context.inquiry_types empty — 자동화 스코프 산정 불가")
     if not data.get("bottlenecks"):
         warnings.append("bottlenecks empty — 인터뷰 보강 권장")
-    # 배포 계획서(brief) 정량 baseline 권고
+    # 배포 계획서(report) 정량 baseline 권고
     if not ctx.get("org"):
         warnings.append("context.org 없음 — 배포 계획서 2장 조직·R&R 표 비어짐(권고)")
     if inquiry_types and not any(t.get("avg_leadtime") for t in inquiry_types):

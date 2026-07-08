@@ -1,7 +1,7 @@
 # discovery-spec — deployment-discovery.json 스키마 (단일 계약)
 
-> 음성 인터뷰 transcript에서 도출한 **채널톡 배포 discovery의 구조화 진실 = `deployment-discovery.json`**.
-> `scripts/validate_discovery.py`가 이 스펙을 강제한다. 다운스트림 `brief` 스킬은 이 discovery로
+> 음성 인터뷰 transcript에서 도출한 **채널톡 알프 도입 준비 조사 결과 = `deployment-discovery.json`**.
+> `scripts/validate_discovery.py`가 이 스펙을 강제한다. 다운스트림 `report` 스킬은 이 discovery로
 > `deployment-brief.md`(배포 계획서, 고객 C레벨용)와 `product-input.md`(본진 프로덕트팀용 — 고객 페인·니즈 + 제품 개발 시 고려사항)를
 > 에이전트가 각 포맷 레퍼런스(`deployment-brief-format.md`, `product-input-format.md`)대로 직접 집필한다.
 > 필드명·규칙을 바꾸려면 **여기부터** 고친다(SKILL·validator·집필이 이 파일을 단일 출처로 따른다).
@@ -24,7 +24,7 @@
     "interviewees": [{ "role": "cs_lead", "who": "CS팀장" }],  // 선택. 여러 명/그룹 인터뷰 시 명단(보고서 헤더에 표기)
     "company_size": "enterprise",            // 필수. smb|enterprise
     "created_at": "2026-07-06",              // 필수 YYYY-MM-DD
-    "created_by": "intake voice interview",  // 필수
+    "created_by": "interview voice interview",  // 필수
     "source_transcript": "output/transcript.jsonl"  // 권장(출처 추적)
   },
   "context": {                               // 축 A — 배포 계획서 2장(현황 파악) baseline
@@ -81,7 +81,7 @@
       "product_surface": "알프 태스크" }     // 선택. 어느 제품 표면에 걸리나(product-input-format.md C절)
   ],
   "open_questions": ["주문 시스템 API 제공 여부 확인 필요"],  // 배포 전 미해결(사전 단서)
-  "synthesis": {                             // 두괄식 보고서용 종합 — intake가 인터뷰를 요약해 채운다(보고서가 맨 앞에 세움)
+  "synthesis": {                             // 두괄식 보고서용 종합 — interview가 인터뷰를 요약해 채운다(보고서가 맨 앞에 세움)
     "deployment_headline": "무엇을 어떻게 배포할지 한 줄 권고(BLUF)",
     "deployment_rationale": "왜(2~3문장, 현장 근거)",
     "readiness": "green|yellow|red — 한 줄 진단",

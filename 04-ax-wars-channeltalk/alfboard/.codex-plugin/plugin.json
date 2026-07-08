@@ -1,0 +1,22 @@
+{
+  "name": "alfboard",
+  "version": "1.0.0",
+  "description": "Alfboard — 채널톡 알프 도입 준비 자동화. 고객 현업을 음성으로 인터뷰해 도입에 필요한 정보를 끌어내고(interview), 그 결과로 '배포 계획서'(고객 C레벨용)와 '제품 인풋 문서'(본진 프로덕트팀 피드백: 고객 페인/니즈와 제품 고려사항)를 에이전트가 집필한다(report).",
+  "author": { "name": "bridgewright" },
+  "license": "MIT",
+  "keywords": ["alfboard","channeltalk","channel-talk","deployment","discovery","interview","report","alf","voice","cs","cx"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Alfboard",
+    "shortDescription": "채널톡 알프 도입 준비 자동화 — 음성 인터뷰로 배포 계획서와 제품 피드백을 생성",
+    "longDescription": "채널톡 배포 담당자가 고객 현업(CS 리더, 경영진, 상담사, IT)을 음성으로 인터뷰해, 배포 결정에 필요한 정보를 끌어냅니다(interview). 그 대화 한 번으로 고객 C레벨용 '배포 계획서'와 본진 프로덕트팀용 '제품 인풋 문서(고객 페인/니즈와 제품 고려사항)'를 에이전트가 집필합니다(report). interview로 인터뷰를 시작하세요.",
+    "developerName": "bridgewright",
+    "category": "Developer Tools",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "defaultPrompt": [
+      "채널톡 배포 인터뷰(interview)를 시작하고 싶어",
+      "discovery로 배포 계획서와 제품 인풋 문서를 만들어줘"
+    ],
+    "brandColor": "#6157EA"
+  }
+}

@@ -4,7 +4,7 @@
     "interviewee_role": "cs_lead",
     "company_size": "enterprise",
     "created_at": "2026-07-06",
-    "created_by": "intake voice interview",
+    "created_by": "interview voice interview",
     "source_transcript": "output/transcript.jsonl"
   },
   "context": {

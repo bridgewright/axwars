@@ -4,7 +4,7 @@
     "interviewee_role": "multi",
     "company_size": "enterprise",
     "created_at": "2026-07-06",
-    "created_by": "intake voice interview — 4개 그룹 9명 통합 (샘플)",
+    "created_by": "interview voice interview — 4개 그룹 9명 통합 (샘플)",
     "source_transcript": "samples/무브온/transcripts/",
     "interviewees": [
       { "role": "cs_lead", "who": "CS팀장 김서연" },
