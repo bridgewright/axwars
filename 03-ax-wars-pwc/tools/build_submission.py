@@ -26,7 +26,7 @@ import zipfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-OUTPUT_ZIP = Path.home() / "Desktop" / "submission.zip"
+OUTPUT_ZIP = Path.home() / "Desktop" / "pwc-v2.zip"
 
 # Directory names dropped wherever they appear while copying a tree. "logs" is
 # here because gaap-ifrs/ has accidental nested dev-log copies (from the

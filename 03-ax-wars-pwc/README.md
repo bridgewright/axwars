@@ -4,10 +4,20 @@
 
 | 트랙 | 무엇을 하나 | 핵심 디렉터리 |
 |---|---|---|
-| **트랙 1** | 소스 GAAP(K-GAAP·VAS·CAS·US GAAP) 시산표 → K-IFRS 변환 엔진. 재무제표·전환조정 명세서(기준서 인용)·영향분석을 산출 | `gaap-ifrs/`, `skills/gaap-ifrs-converter/`, `examples/` |
+| **트랙 1** | 소스 GAAP(K-GAAP·VAS·CAS·US GAAP) 시산표 → K-IFRS 변환 엔진. 재무제표·전환조정 명세서(조항 근거를 코퍼스 원문으로 grounding)·영향분석을 산출 | `gaap-ifrs/`, `skills/gaap-ifrs-converter/`, `examples/` |
 | **트랙 2** | K-IFRS 원문 grounded RAG 챗봇. 로컬 MCP 하이브리드(BM25+벡터) 검색으로, 검색된 문단 verbatim 인용 없이는 답하지 않음 | `gaap_standards_mcp/`, `tools/ingest/`, `corpus/`, `skills/gaap-standards-qa/` |
 
-두 트랙은 독립 실행되지만 같은 문제 — "회계기준 전환·조회에서 로컬 GAAP과 IFRS를 둘 다 아는 희소 시니어에 의존"— 를 다른 각도로 푼다. 트랙 1은 정해진 6개 측정조정을 확정 답으로 자동화하고, 트랙 2는 정해지지 않은 어떤 조항이든 원문 검색으로 대응한다.
+두 트랙은 독립 실행되지만 같은 문제 — "회계기준 전환·조회에서 로컬 GAAP과 IFRS를 둘 다 아는 희소 시니어에 의존"— 를 다른 각도로 푼다. 트랙 1은 정해진 6개 측정조정을 확정 답으로 자동화하고, 트랙 2는 정해지지 않은 어떤 조항이든 원문 검색으로 대응한다. **두 트랙은 한 코퍼스를 공유한다** — 트랙 1의 각 조정 근거는 트랙 2 코퍼스의 원문(verbatim)으로 grounding된다(엔진-side·결정론, 코퍼스에 없으면 "큐레이션 요약"으로 명시).
+
+## 문서 안내
+
+| 문서 | 무엇 |
+|---|---|
+| **README.md** (이 문서) | 플러그인 전체 기술 개요 — 설치·실행·코퍼스·테스트·스코프 |
+| **submission/README.md** | 제출 답변서(무엇을·왜·어떻게·AI 사용·검증). zip 최상위 `README.md`로 동봉 |
+| **README_track2.md** | 트랙 2(원문 grounded 검색) 상세 딥다이브 |
+| **skills/gaap-ifrs-converter/SKILL.md** · **skills/gaap-standards-qa/SKILL.md** | 각 스킬의 실행 계약 |
+| **gaap-ifrs/README.md** | 트랙 1 변환 엔진 패키지 상세 |
 
 ## 설치
 
@@ -47,7 +57,7 @@ python -m tools.ingest.run_ingest --gaap K-IFRS --download-dir downloads --corpu
 
 ```bash
 PYTHONPATH=. python -m pytest -q       # 트랙 2: 130 케이스 (BM25·벡터·RRF융합·MCP 4도구·3단 폴백·GAAP별 세그멘터·leak/shadow 게이트·경계 게이트·corpus·manifest 등)
-cd gaap-ifrs && python -m pytest -q    # 트랙 1: 34 케이스 (파싱·매핑·조정 6종·명세·영향·CLI·검증기)
+cd gaap-ifrs && python -m pytest -q    # 트랙 1: 47 케이스 (파싱·매핑·조정 6종·명세·영향·CLI·근거 grounding·검증기)
 ```
 
 ## 정직한 스코프

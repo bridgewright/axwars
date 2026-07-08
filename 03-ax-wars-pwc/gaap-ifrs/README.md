@@ -16,7 +16,7 @@
 
 1. `ifrs_financials.xlsx` — K-IFRS 재무상태표/손익계산서
 2. `reconciliation.xlsx` — **전환조정 명세서**: 재분류·조정별 (소스→IFRS계정, 금액, 방향, **기준서 출처**, confidence, 비고) + 자본 전환 브릿지
-3. `difference_analysis.md` — **회계사용 상세 보고서**: 계정·조정마다 IFRS/이전 GAAP **조항 근거(문단)** + 핵심 차이 + 엔진의 판단 논리 + **분개 파급효과(어떤 계정이 얼마 움직여 자산·부채·자본·손익이 어떻게 변하는지)** 를 **단위와 함께** 설명. 근거는 `data/*.json`의 `basis`에서 온다.
+3. `difference_analysis.md` — **회계사용 상세 보고서**: 계정·조정마다 IFRS **조항 근거(트랙 2 코퍼스 원문 verbatim)** + 이전 GAAP·핵심 차이 + 엔진의 판단 논리 + **분개 파급효과(어떤 계정이 얼마 움직여 자산·부채·자본·손익이 어떻게 변하는지)** 를 **단위와 함께** 설명. 근거 포인터(`ifrs_ref`)는 `data/*.json`의 `basis`에서, 그 **원문은 코퍼스에서 grounding**한다(엔진-side·결정론, 코퍼스 없거나 미적재면 "큐레이션 요약"으로 폴백). `--corpus-dir`로 코퍼스 지정(기본 자동탐색).
 4. `impact_analysis.xlsx` — 자본총계·순이익 등 소스 vs IFRS 델타 + 서술
 5. `result.json` — 기계판독용
 
@@ -50,7 +50,7 @@ gaap-ifrs convert --input tb.xlsx --extra aging.json --out out/
 
 ## 검증
 
-- **합성 회귀:** `pytest` 34 케이스 (파싱·매핑·조정 6종·명세·영향·리포트·CLI·VAS·CAS·US GAAP·KB·검증기).
+- **합성 회귀:** `pytest` 47 케이스 (파싱·매핑·조정 6종·명세·영향·리포트·CLI·VAS·CAS·US GAAP·근거 grounding(ifrs_ref 파서·코퍼스 리졸버·폴백)·KB·검증기).
 - **검증기(`gaap_ifrs/validate.py`):** 엔진 산출 IFRS 자본·조정별 금액을 **IFRS 1101 전환조정 정답셋과 대조**(일치/불일치 판정). `validate_against(result, ground_truth)`.
 - **실데이터 절차:** K-GAAP→K-IFRS **전환 상장사**의 마지막 K-GAAP 감사보고서를 입력으로, 첫 K-IFRS 주석의 **IFRS 1101 전환조정 명세**를 정답으로. 전환주석은 `analysis/fetch_ifrs1_note.py`로 DART에서 페치(best-effort — 문서구조 편차로 특정 전환사 지정 시 안정적). IFRS 1101이 해당 명세를 의무 공시하므로 정답셋이 공개 존재.
 

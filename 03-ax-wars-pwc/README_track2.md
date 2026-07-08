@@ -1,5 +1,7 @@
 # 트랙 2 — 회계기준 원문 grounded RAG 챗봇
 
+> **이 문서는 트랙 2(원문 검색) 상세 딥다이브입니다.** 플러그인 전체 개요·설치·문서 안내는 최상위 **`README.md`**, 제출 답변서는 **`submission/README.md`** 참조. 스킬 `gaap-standards-qa`, 변환 스킬 `gaap-ifrs-converter`(트랙 1)로 구성된 플러그인 `pwc-gaap-ifrs-suite`의 일부입니다.
+
 로컬 GAAP/IFRS 규정 원문(K-IFRS · K-GAAP(일반기업회계기준) · US-GAAP · CAS · VAS)을 하이브리드(BM25+벡터) 검색으로 서빙하는 **로컬 MCP 서버**와, Codex가 **원문 인용으로만** 답하는 grounded QA 스킬. 트랙 1 변환엔진(`gaap-ifrs/`)과는 독립이다.
 
 ## 아키텍처
