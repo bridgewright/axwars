@@ -425,9 +425,21 @@ def _split_piece(chunk_text, lang, toc=frozenset()):
     if last_content < 0:
         heads = [l.strip() for l in lines if l.strip() and _is_head(l)]
         return None, heads
-    body = lines[:last_content + 1]
+    body_lines = lines[:last_content + 1]
     trailing = [l.strip() for l in lines[last_content + 1:] if l.strip() and _is_head(l)]
-    return "\n".join(body).strip(), trailing
+    # 비-TOC 긴 절 제목(17~30자): body 끝줄이 헤딩형이고 그 앞줄이 문장 종결부호로
+    # 끝나면(=문단이 완결된 뒤 붙은 다음 절 제목) 떼어낸다. 앞줄이 미완결(마침표 없이
+    # 줄바꿈된 내용)이면 손실 방지를 위해 보존한다. coverage 게이트가 최종 안전망.
+    ends = _SENT_END.get(lang, _SENT_END["en"])
+    while len(body_lines) >= 2:
+        last, prev = body_lines[-1].strip(), body_lines[-2].strip()
+        if (16 < len(last) <= 30 and last and last[-1] not in ends and "|" not in last
+                and not _LIST_HEAD_RE.match(last) and not re.search(r"\d{2,}", last)
+                and prev and prev[-1] in ends):
+            trailing.insert(0, body_lines.pop().strip())
+        else:
+            break
+    return "\n".join(body_lines).strip(), trailing
 
 
 def _finalize_pieces(raw_pieces, slug, gaap, standard_no, standard_title, lang, tier,
