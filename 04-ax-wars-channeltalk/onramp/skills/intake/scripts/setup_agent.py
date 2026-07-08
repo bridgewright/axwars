@@ -47,7 +47,7 @@ def split_prompt(text: str):
 
 
 def build_conversation_config(system_prompt, first_message, *, llm, temperature,
-                              language, voice_id, tts_model, turn_timeout=None):
+                              language, voice_id, tts_model, turn_timeout=None, speed=None):
     agent = {
         "language": language,
         "prompt": {"prompt": system_prompt, "llm": llm, "temperature": temperature},
@@ -58,6 +58,9 @@ def build_conversation_config(system_prompt, first_message, *, llm, temperature,
     tts = {"model_id": tts_model}
     if voice_id:
         tts["voice_id"] = voice_id
+    # 말하기 속도(0.7~1.2, 1.0 기본). 클수록 빠름.
+    if speed is not None:
+        tts["speed"] = speed
     cfg = {"agent": agent, "tts": tts}
     # 사용자 침묵 후 에이전트가 응답하기까지 대기(초). 낮을수록 응답이 빠름.
     if turn_timeout is not None:
@@ -125,6 +128,8 @@ def main(argv=None) -> int:
     p.add_argument("--language", default="ko")
     p.add_argument("--voice-id", default=None, help="한국어 보이스 ID(미지정 시 플랫폼 기본)")
     p.add_argument("--tts-model", default="eleven_turbo_v2_5")
+    p.add_argument("--speed", type=float, default=None,
+                   help="말하기 속도(0.7~1.2, 1.0 기본, 클수록 빠름. 예: 1.1)")
     p.add_argument("--turn-timeout", type=float, default=None,
                    help="사용자 침묵 후 에이전트 응답까지 대기(초). 낮을수록 빠름(예: 2)")
     p.add_argument("--write-env", action="store_true", help="결과 agent_id 를 .env 에 기록")
@@ -140,6 +145,7 @@ def main(argv=None) -> int:
         system_prompt, first_message,
         llm=args.llm, temperature=args.temperature, language=args.language,
         voice_id=args.voice_id, tts_model=args.tts_model, turn_timeout=args.turn_timeout,
+        speed=args.speed,
     )
 
     if args.dry_run:

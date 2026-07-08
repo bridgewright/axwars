@@ -9,19 +9,23 @@
     exec.md      — 대표 이하늘 · COO 정민재 (2명)
     agent.md     — 상담사 윤지아 · 최다은 · 한소미 (3명)
     it.md        — 개발리드 오세훈 · 백엔드 강태영 (2명)
-  deployment-discovery.json   — 4개 그룹 인터뷰를 통합한 계약(interviewee_role: "multi" + synthesis)
-  deployment-brief.md         — 배포 계획서 (두괄식, 배포팀용)
-  product-input.prd.md        — 고객 페인 → 제품 제언서 (두괄식, 본진용)
+  deployment-discovery.json   — 4개 그룹 인터뷰를 통합한 계약(interviewee_role: "multi" + org/리드타임/it_capacity/synthesis)
+  deployment-brief.md         — 배포 계획서 (C레벨 보고서, 에이전트가 deployment-brief-format.md대로 집필한 exemplar)
+  product-input.prd.md        — 고객 페인 → 제품 제언서 (본진용, build_reports.py 렌더)
 ```
 
 ## 이 샘플이 보여주는 것
 
-1. **그룹마다 다른 것을 캐낸다.** CS리더는 업무·병목, 경영진은 성과·의사결정, 현장 상담사는 엣지케이스·수작업, IT는 연동·보안. 네 그룹을 합치면 discovery의 모든 슬롯이 촘촘히 채워진다.
-2. **보고서는 두괄식이다.** 두 보고서 모두 **⚡ 결론 먼저(권고/제언)** 로 시작해 So-What을 명확히 하고, 이어서 **현장 인용**으로 설득한다. 이 요약은 discovery의 `synthesis` 블록(intake가 인터뷰를 종합해 채움)에서 온다.
-3. **신호 강도가 집계된다.** 같은 제품 갭을 여러 인터뷰이가 말하면(`product_gaps[].tag`) PRD에서 건수로 집계돼 우선순위가 보인다(예: `[action_task]` 2건, `[reask_context]` 2건).
-4. **미확보는 상상하지 않는다.** 확인 안 된 항목은 `open_questions`로 남아 '지금 결정·확인해야 할 것'이 된다.
+1. **그룹마다 다른 것을 캐낸다.** CS리더는 업무·병목·정량 현황(조직·비중·리드타임), 경영진은 성과·예산·확장, 현장 상담사는 엣지케이스·수작업·건당 시간, IT는 연동·보안·내부 개발 여력. 네 그룹을 합치면 discovery의 모든 슬롯이 촘촘히 채워진다.
+2. **배포 계획서는 C레벨 보고서다.** `deployment-brief.md`는 두괄식·명사형·각주 원칙을 지켜 Executive Summary → 현황 → 페인포인트(현황 위 매핑) → 도입 우선순위(스코어링 테이블) → 기술 고려 → 원가·제시가 → 추가 세일즈 순으로 전개된다. 포맷 정본은 `skills/brief/references/deployment-brief-format.md`.
+3. **원가는 가정 × 공수로 계산된다.** 6장 제시가는 `skills/brief/references/costing-assumptions.md`의 표준 가정에 인터뷰가 캐낸 연동 공수를 곱해 산식 그대로 노출한다.
+4. **미확보는 상상하지 않는다.** 확인 안 된 항목은 '지금 결정·확인해야 할 것'과 `open_questions`로 남는다.
 
 ## 재생성
+
+배포 계획서(`deployment-brief.md`)는 `brief` 스킬을 호출해 에이전트가 포맷 레퍼런스대로 집필한다(결정론 스크립트가 아님).
+
+PRD는 스크립트로 재생성한다:
 ```bash
-python3 skills/handoff/scripts/build_reports.py samples/무브온/deployment-discovery.json --out-dir samples/무브온
+python3 skills/brief/scripts/build_reports.py samples/무브온/deployment-discovery.json --out-dir samples/무브온
 ```

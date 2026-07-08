@@ -19,13 +19,24 @@
   "context": {
     "team_size": "정직원 5명 + 피크 시 단기 알바 2~3명",
     "daily_volume": "평시 약 400건, 시즌오프·라이브방송 시 2,000건+",
-    "channels": ["채팅(약 80%)", "이메일"],
+    "monthly_volume": "평시 약 12,000건",
+    "channels": ["채팅(약 80%)", "이메일(약 20%)"],
+    "org": {
+      "headcount": 5,
+      "structure": "CS팀장 1 · CS파트리더 1 · 상담사 3",
+      "peak_surge": "피크 시 단기 알바 +2~3 (정책 미숙지로 오히려 검수 부담)",
+      "roles": [
+        { "role": "CS팀장(김서연)", "count": 1, "rnr": "정책·에스컬레이션·성과 관리" },
+        { "role": "CS파트리더(박준호)", "count": 1, "rnr": "업무 배분·품질(QA)·VoC 정리 희망" },
+        { "role": "상담사(윤지아·최다은·한소미)", "count": 3, "rnr": "실시간 채팅·이메일 응대, 교환·반품 접수" }
+      ]
+    },
     "inquiry_types": [
-      { "type": "배송조회", "share_pct": 35, "repetitive": true },
-      { "type": "교환/반품", "share_pct": 25, "repetitive": true },
-      { "type": "재입고문의", "share_pct": 15, "repetitive": true },
-      { "type": "사이즈/소재/세탁 문의", "share_pct": 15, "repetitive": false },
-      { "type": "주문취소/결제", "share_pct": 10, "repetitive": true }
+      { "type": "배송조회", "share_pct": 35, "avg_leadtime": "1~2분", "repetitive": true },
+      { "type": "교환/반품", "share_pct": 25, "avg_leadtime": "5~7분(다시스템 수작업)", "repetitive": true },
+      { "type": "재입고문의", "share_pct": 15, "avg_leadtime": "1분(복붙)", "repetitive": true },
+      { "type": "사이즈/소재/세탁 문의", "share_pct": 15, "avg_leadtime": "2~3분, MD 확인 시 반나절", "repetitive": false },
+      { "type": "주문취소/결제", "share_pct": 10, "avg_leadtime": "2~3분", "repetitive": true }
     ]
   },
   "bottlenecks": [
@@ -51,11 +62,20 @@
     { "task": "회수 처리", "backend_system": "외주 WMS", "separate_or_integrated": "separate", "has_api": "yes", "built": "vendor", "dev_effort": "높음(WMS 규격 대응 + 테스트 2~3주)", "tier": "system_task" },
     { "task": "환불(금액 계산)", "backend_system": "외부 PG + 쿠폰/적립금 로직", "separate_or_integrated": "separate", "has_api": "yes", "built": "vendor", "dev_effort": "높음(부분환불·검증 복잡, 별도)", "tier": "system_task" }
   ],
+  "it_capacity": {
+    "internal_dev": "자체 개발팀 있음(커머스 백엔드 자체 구축, 내부 REST API 보유·문서화)",
+    "availability": "이번 연동에 개발리드+백엔드 1~2인, 약 2주 확보 가능(조회·취소·교환접수용 안전 엔드포인트 신설)",
+    "vendor_dependency": "회수는 외주 WMS 규격 대응(문서 노후·담당자 경유, 2~3주), 환불은 외부 PG + 쿠폰·적립금 부분환불 로직",
+    "security_notes": "결제·개인정보 원문 전달 불가 → 최소 필드 마스킹·토큰화, 요청 로그, 엔드포인트별 권한 분리 전제. 채널톡 측 지원 스펙 확인 필요"
+  },
   "knowledge_readiness": {
+    "docs_exist": "partial",
     "faq_count_est": 50,
-    "doc_scope": "교환·반품 정책 등 8건이 노션에 흩어져 있음 + 상품별 소재/케어 정보 산재",
-    "quality_gap": "FAQ가 단어형이라 자연어 매칭 약함 → 문장형 전환 필요, 소재 정보 위치 표준화 필요",
-    "authoring_effort": "FAQ 문장형 전환 + 도큐먼트화 하루~이틀"
+    "faq_format": "대부분 단어형(키워드 위주라 문장 질문에 약함)",
+    "standard_templates": "배송, 교환 등 일부만 공식 표준 문구, 나머지는 상담사마다 제각각",
+    "doc_scope": "교환/반품 정책 등 8건이 노션에 흩어져 있음, 소재/세탁 정보는 상품 상세페이지에 산재",
+    "quality_gap": "FAQ 단어형이라 자연어 매칭 약함(문장형 전환 필요), 소재 정보 위치 표준화 필요",
+    "authoring_effort": "FAQ 문장형 전환과 도큐먼트화에 하루~이틀"
   },
   "org_change": {
     "agent_role_shift": "반복 응대 축소 → 반품 사유 VoC 분석·상품 피드백(MD/기획 연계)·클레임 등 고난도 케이스 집중",

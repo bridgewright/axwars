@@ -46,10 +46,22 @@ def validate(data):
         if g.get("tag") not in TAGS:
             errors.append(f"product_gaps[{i}].tag invalid: {g.get('tag')}")
 
-    if not (data.get("context", {}) or {}).get("inquiry_types"):
+    ctx = data.get("context", {}) or {}
+    inquiry_types = ctx.get("inquiry_types") or []
+    if not inquiry_types:
         warnings.append("context.inquiry_types empty — 자동화 스코프 산정 불가")
     if not data.get("bottlenecks"):
         warnings.append("bottlenecks empty — 인터뷰 보강 권장")
+    # 배포 계획서(brief) 정량 baseline 권고
+    if not ctx.get("org"):
+        warnings.append("context.org 없음 — 배포 계획서 2장 조직·R&R 표 비어짐(권고)")
+    if inquiry_types and not any(t.get("avg_leadtime") for t in inquiry_types):
+        warnings.append("inquiry_types에 avg_leadtime 없음 — 3장 페인 매핑 리드타임 축 약화(권고)")
+    if not data.get("it_capacity"):
+        warnings.append("it_capacity 없음 — 5·6장 고객 IT 여력·원가 산정에 필요(권고)")
+    kr = data.get("knowledge_readiness") or {}
+    if kr and not kr.get("faq_format"):
+        warnings.append("knowledge_readiness.faq_format 없음 — 알프 지식 도입 난이도 평가에 정리 포맷 정보 필요(권고)")
     syn = data.get("synthesis") or {}
     if not syn.get("deployment_headline") or not syn.get("product_headline"):
         warnings.append("synthesis.deployment_headline/product_headline 없음 — 보고서 두괄식 요약이 약해짐(권고: 채울 것)")

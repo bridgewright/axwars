@@ -4,7 +4,7 @@
 
 채널톡 알프 도입을 앞둔 **고객사 현업**을 실제 사람과 대화하듯 음성으로 인터뷰해, "이 고객에 알프를 어떻게 깔지"에 필요한 정보를 막연한 형용사가 아니라 **구체적인 일화**로 끌어내는 스킬. ElevenLabs Agents Platform + Claude로 동작하며 인터뷰는 **한국어**.
 
-배포 파이프라인 ①단계 — 대화에서 **`deployment-discovery.json`(계약)**을 도출해 ②단계(handoff)로 넘긴다.
+배포 파이프라인 ①단계 — 대화에서 **`deployment-discovery.json`(계약)**을 도출해 ②단계(brief)로 넘긴다.
 
 ## 최종 산출물
 - **transcript** (`output/transcript.jsonl` / `interview-notes.md`) — 음성 대화 turn 기록.
@@ -35,7 +35,7 @@ uv run python skills/intake/scripts/run_interview.py   # 로컬 CLI(마이크)
 > `.env`·`output/`(실제 대화록)은 gitignore. 마이크·네트워크 때문에 sandbox 밖에서 실행.
 
 ## 다음 단계
-transcript → `output/deployment-discovery.json` 조립 → `python3 scripts/validate_discovery.py` 게이트 → **handoff**가 두 보고서(배포 계획서 + 본진 PRD 제언서) 렌더.
+transcript → `output/deployment-discovery.json` 조립 → `python3 scripts/validate_discovery.py` 게이트 → **brief**가 두 보고서(배포 계획서는 에이전트 집필, 본진 PRD 제언서는 렌더) 생성.
 
 ## 구성
 | 파일 | 역할 |

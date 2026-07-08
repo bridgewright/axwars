@@ -1,6 +1,6 @@
 ---
 name: intake
-description: 채널톡 알프(AI 상담 에이전트) 도입을 앞둔 고객사의 현업(CS 리더·경영진·상담사·IT 담당)을 ElevenLabs 음성 에이전트로 "실제 사람과 대화하듯" 인터뷰해, 무엇을 어떻게 배포할지 정하는 데 필요한 정보를 막연한 형용사가 아니라 구체 일화로 끌어내고 그 대화를 turn 기반 transcript로 남긴다. 브라우저(WebRTC 에코제거 + 끼어들기 OK)와 로컬 CLI 두 경로. 인터뷰는 한국어. Use when 사용자가 "배포 인터뷰를 진행"하거나 "현업 음성 인터뷰", "intake 인터뷰", "알프 도입 discovery"를 요청할 때. transcript에서 deployment-discovery.json(계약)까지 도출해 handoff로 넘긴다.
+description: 채널톡 알프(AI 상담 에이전트) 도입을 앞둔 고객사의 현업(CS 리더·경영진·상담사·IT 담당)을 ElevenLabs 음성 에이전트로 "실제 사람과 대화하듯" 인터뷰해, 무엇을 어떻게 배포할지 정하는 데 필요한 정보를 막연한 형용사가 아니라 구체 일화로 끌어내고 그 대화를 turn 기반 transcript로 남긴다. 브라우저(WebRTC 에코제거 + 끼어들기 OK)와 로컬 CLI 두 경로. 인터뷰는 한국어. Use when 사용자가 "배포 인터뷰를 진행"하거나 "현업 음성 인터뷰", "intake 인터뷰", "알프 도입 discovery"를 요청할 때. transcript에서 deployment-discovery.json(계약)까지 도출해 brief로 넘긴다.
 version: 1.0.0
 permissions:
   - file_read
@@ -11,7 +11,7 @@ permissions:
 
 # Intake — 배포 discovery 음성 인터뷰 (①단계)
 
-채널톡 배포 담당자가 **고객사 현업**을 ElevenLabs 음성 에이전트로 인터뷰한다. 목표는 "이 고객에 알프를 어떻게 깔지"에 필요한 사실을 실제 일화로 끌어내고 **깨끗한 transcript**를 남긴 뒤, 이를 **`deployment-discovery.json`(계약)**으로 정리해 다음 단계(handoff)에 넘기는 것. 인터뷰는 **한국어**, UI는 채널톡 룩.
+채널톡 배포 담당자가 **고객사 현업**을 ElevenLabs 음성 에이전트로 인터뷰한다. 목표는 "이 고객에 알프를 어떻게 깔지"에 필요한 사실을 실제 일화로 끌어내고 **깨끗한 transcript**를 남긴 뒤, 이를 **`deployment-discovery.json`(계약)**으로 정리해 다음 단계(brief)에 넘기는 것. 인터뷰는 **한국어**, UI는 채널톡 룩.
 
 > **범위(end-to-end)**: 음성 인터뷰 → transcript → `deployment-discovery.json`. 다운스트림 계약: `references/handoff-contract.md`, 스키마: `references/discovery-spec.md`.
 
@@ -32,6 +32,7 @@ permissions:
 uv run python skills/intake/scripts/setup_agent.py --write-env      # 생성 → AGENT_ID 기록
 uv run python skills/intake/scripts/setup_agent.py --agent-id <id>  # 프롬프트 수정 후 갱신
 ```
+> **음성 조정**: `--speed 1.1`(범위 0.7~1.2, 클수록 빠름), `--voice-id <id>`로 보이스 교체. 한국어 원어민 보이스 예시 — HJ 여성(따뜻함) `eI3jlA17XYDwAIY4lo0y`, Jihu 남성(차분) `i4rvH83fgM9aBqIBZ5zH`. 라이브러리 보이스는 계정에 먼저 추가해야 사용 가능(`POST /v1/voices/add/{owner}/{voice_id}`). 현재 데모 에이전트는 HJ 여성 + 속도 1.1 적용됨.
 
 ### Step 2 — 인터뷰 진행
 - **인터뷰 대상 롤을 먼저 정한다**: `cs_lead`(CX/CS 리더·주 대상) / `exec`(경영진) / `agent`(현장 상담사) / `it`(IT 담당). 프롬프트가 첫 메시지에서 롤·회사 규모를 확인하고 해당 롤 흐름으로 진행.
@@ -47,7 +48,7 @@ uv run python skills/intake/scripts/setup_agent.py --agent-id <id>  # 프롬프�
 인터뷰가 끝나면 transcript를 읽어 `references/discovery-spec.md` 스키마대로 **`output/deployment-discovery.json`**을 조립한다:
 1. 3축(A 업무·병목 / B 시스템·연동 / C 성과·임팩트)의 슬롯을 transcript의 **구체 일화**에서 채운다. 확보 못 한 슬롯은 상상 금지 → `"unknown"` 또는 `open_questions`.
 2. 게이트: `python3 scripts/validate_discovery.py output/deployment-discovery.json` (ERROR면 인터뷰로 되돌아가 보강).
-3. 사용자에게 핵심(연동 tier, 자동화 우선순위, 제품 갭 태그)을 한눈에 보고하고 **handoff로 넘긴다**.
+3. 사용자에게 핵심(연동 tier, 자동화 우선순위, 제품 갭 태그)을 한눈에 보고하고 **brief로 넘긴다**.
 
 가상 예시: `assets/sample-discovery.json`.
 
@@ -61,7 +62,7 @@ uv run python skills/intake/scripts/setup_agent.py --agent-id <id>  # 프롬프�
 ## 파일
 - `prompt/interviewer-system-prompt.md` — 인터뷰어 페르소나(SSOT, 4롤, grill-me).
 - `references/discovery-spec.md` — `deployment-discovery.json` 스키마(계약 정본).
-- `references/handoff-contract.md` — 다운스트림(handoff) 소비 계약.
+- `references/handoff-contract.md` — 다운스트림(brief) 소비 계약.
 - `scripts/setup_agent.py` — ElevenLabs 에이전트 생성/갱신.
 - `scripts/serve_browser.py` — signed URL + 로컬 채널톡 인터뷰 페이지(WebRTC AEC).
 - `scripts/run_interview.py` — 로컬 마이크 음성 루프.
