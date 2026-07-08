@@ -596,6 +596,15 @@ _KGAAP_MASTER_TOC_RE = re.compile(_loose("목") + r"[ \t\n]*" + _loose("차"))
 _KGAAP_GUIDANCE_DIVIDER_RE = re.compile(r"(?m)^실무지침\s*$")
 _KGAAP_DISSENT_DIVIDER_RE = re.compile(r"(?m)^소수의견\s*$")
 
+# HWP 폴백(hwp5txt 추출): HWP 첨부에는 '실무지침'/'결론도출근거'/'적용사례'/'소수의견'
+# 섹션 헤딩 줄이 빠져 있고(확인: 실무지침 헤딩 미검출, 결론도출근거 0회) 문단
+# 접두어(실N.·결N.·사례N·소N.)만 남는다. 헤딩이 없을 때 각 접두어의 '첫 등장'을
+# 섹션 경계로 쓴다 → 실무지침(적용지침) tier 보존, 결론도출근거/적용사례 정상 드롭.
+_KGAAP_GUIDANCE_PREFIX_RE = re.compile(r"(?m)^[ \t]*실\d+\.")
+_KGAAP_BC_PREFIX_RE = re.compile(r"(?m)^[ \t]*결\d+\.")
+_KGAAP_EXAMPLE_PREFIX_RE = re.compile(r"(?m)^[ \t]*사례\d")
+_KGAAP_DISSENT_PREFIX_RE = re.compile(r"(?m)^[ \t]*소\d+\.")
+
 # NOTE on a fallback that was tried and deliberately reverted: 제9장's HWP
 # attachment (the one K-GAAP chapter needing an HWP fallback -- see
 # sources.py) is missing the literal "실무지침" heading text from its
@@ -658,7 +667,12 @@ def strip_frontmatter_kgaap(text):
 
     info["chars_dropped"] = cut
     info["dropped_text"] = text[:cut]
-    return text[cut:], info
+    kept = text[cut:]
+    # hwp5txt가 렌더 못 한 표를 남기는 '<표>' 플레이스홀더 제거 — 표 내용이 아니라
+    # 마커. baseline·records 모두 strip_frontmatter_kgaap를 거치므로 일관 제거되어
+    # coverage 오차가 없다. HWP 소스의 표 내용 손실은 문서화된 한계(sources.py 참조).
+    kept = kept.replace("<표>", "")
+    return kept, info
 
 
 def split_sections_kgaap(text):
@@ -684,6 +698,18 @@ def split_sections_kgaap(text):
     marks += [(m.start(), "결론도출근거") for m in _BC_DIVIDER_RE.finditer(text)]
     marks += [(m.start(), "적용사례") for m in _IE_DIVIDER_RE.finditer(text)]
     marks += [(m.start(), "결론도출근거") for m in _KGAAP_DISSENT_DIVIDER_RE.finditer(text)]
+    # HWP 폴백: 해당 섹션의 헤딩 마크가 하나도 없으면 문단 접두어의 첫 등장을 경계로
+    # 추가한다(헤딩이 잡은 섹션은 접두어를 무시 → PDF/픽스처 기존 동작 불변).
+    heading_names = {name for _, name in marks}
+    for prefix_re, name in ((_KGAAP_BC_PREFIX_RE, "결론도출근거"),
+                            (_KGAAP_GUIDANCE_PREFIX_RE, "적용지침"),
+                            (_KGAAP_EXAMPLE_PREFIX_RE, "적용사례"),
+                            (_KGAAP_DISSENT_PREFIX_RE, "결론도출근거")):
+        if name in heading_names:
+            continue
+        m = prefix_re.search(text)
+        if m:
+            marks.append((m.start(), name))
     marks.sort(key=lambda x: x[0])
 
     boundaries = [(0, "본문")]

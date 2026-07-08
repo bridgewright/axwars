@@ -175,7 +175,13 @@ SOURCES = {
         ],
     },
     "K-GAAP": {
-        "lang": "ko", "format": "pdf", "base_url": "https://www.kasb.or.kr",
+        # 소스=HWP(2026-07-08 정정): K-GAAP PDF는 한글 단어 사이 공백이 없는
+        # 텍스트 레이어라 PyMuPDF 어떤 모드로도 복원 불가(Phase 0 실측). HWP는
+        # 공백 보존(hwp5txt) → 소스를 HWP로 전환. 트레이드오프: hwp5txt는 표를
+        # <표> 플레이스홀더로 떨궈 표 내용은 손실(본문 규정 텍스트가 우선). 번호 뒤
+        # 공백('9.1이')은 normalize_missing_space가 처리. url=공식 List3003 목록.
+        "lang": "ko", "format": "hwp", "base_url": "https://www.kasb.or.kr",
+        "url": "https://www.kasb.or.kr/front/board/List3003.do",
         # Unlike K-IFRS's own listing page (which states "시행중 회계기준은
         # 2026년 1월 1일 현재 시행중인 회계..."), List3003.do prints no
         # single canonical "현재 시행중" vintage sentence at all -- each 장

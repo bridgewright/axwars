@@ -273,7 +273,9 @@ def main():
     elif a.gaap == "CAS":
         recs, _report = ingest_cas(a.download_dir)   # CAS는 per-file standard_no/para_style 필요
     else:
-        recs = ingest_gaap(a.gaap, a.download_dir)
+        # K-GAAP '영문양식'은 문단 없는 빈 영문 서식(적재 대상 아님) → 제외
+        skip = ("영문양식",) if a.gaap == "K-GAAP" else ()
+        recs = ingest_gaap(a.gaap, a.download_dir, skip_nos=skip)
     if a.no_vectors:
         write_without_vectors(a.gaap, recs, a.corpus_dir)
     else:

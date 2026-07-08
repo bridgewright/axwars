@@ -1,4 +1,5 @@
 import re
+from dataclasses import replace
 from gaap_standards_mcp.schema import Record
 from gaap_standards_mcp.normalize import normalize_text
 from .segment import (strip_frontmatter, split_sections, strip_frontmatter_kgaap, split_sections_kgaap,
@@ -462,6 +463,10 @@ def _finalize_pieces(raw_pieces, slug, gaap, standard_no, standard_title, lang, 
         recs.append(_mk(rec_id, gaap, standard_no, standard_title, para_no, body_text,
                         lang, tier, source_url, as_of, heading=pending_heading))
         pending_heading = " ".join(trailing)
+    # 구역 끝에 남은 dangling 헤딩(다음 문단이 없는 구역 경계의 절 제목)은 마지막
+    # 레코드의 heading에 보존한다 — 버리지 않아 무손실(coverage 정합).
+    if pending_heading and recs:
+        recs[-1] = replace(recs[-1], heading=(recs[-1].heading + " " + pending_heading).strip())
     return recs
 
 
