@@ -1,17 +1,32 @@
 # 트랙2 (회계기준 원문 RAG 챗봇) — 재개 문서
 
-**최종 갱신:** 2026-07-08 (4개 소스 GAAP 전량 적재 완료 — Phase E 종료)
+**최종 갱신:** 2026-07-08 (청커 대개편 + 전 GAAP 재적재 완료. 남은 것: VAS 출처 재라벨, 답변 고도화 스킬)
 
-## 현재 상태 — ✅ 완료
-- **4개 소스 GAAP 원문 코퍼스** (모두 커밋됨)
-  - K-IFRS 6,137(63기준서) · 일반기업회계기준 2,101(36장) · 중국 CAS 1,665(95문서) · 베트남 VAS 1,180(26기준서) = **11,083문단**, leak 0·id충돌 0
-  - 벡터: `corpus/vectors/index.faiss` (IndexFlatIP, 11,083, 17MB), 교차언어 검색 실측(한국어→K-IFRS/K-GAAP, 중국어→CAS, 베트남어→VAS)
-  - US GAAP = 원격 확장점(§8, asc.fasb.org 봇월 차단; `sources.py` mode=remote)
-- **제출본:** `~/Desktop/submission-pwc.zip` (17.25MB, ≤100MB) — 트랙1+트랙2, 추출 후 pytest 119 + 검색 스모크 통과
-- **테스트:** 트랙2 119 통과 · 트랙1 34 통과
-- **워킹트리 clean** (마지막 커밋 `4d55a63`)
+## 현재 상태 — ✅ 청커/코퍼스 대개편 완료 (커밋 `4dfebf9`까지)
+- **전 GAAP 재적재(정합 코드):** K-IFRS 6,115 · **K-GAAP 2,001(HWP)** · CAS 1,626 · VAS 1,180 = **10,922문단**
+  - **전수 결함 0**: 페이지푸터·후행헤딩·헤딩전용·leak 모두 0. **내용 손실 0**(전 GAAP coverage 통과 = 정공법 핵심).
+  - **K-GAAP은 PDF→HWP 전환**: PDF 공백소실 복원(`13.1 이 장의 목적은…`) + **실무지침 tier 보존**(적용지침 612). 표 내용은 HWP 한계로 생략(`<표>` 제거, 문서화).
+  - 벡터 재빌드: `corpus/vectors/index.faiss`(IndexFlatIP, 10,922, 16MB, **gitignore — 제출 zip엔 포함**). 제출본 `~/Desktop/submission-pwc.zip` 17.11MB(≤100MB).
+  - 테스트: 트랙2 **130** · 트랙1 **34** 통과.
+- **청커 수정 기법(모두 무손실, `chunk.py`/`fidelity.py`/`segment.py`):** 페이지푸터 제거 · 후행 절/장 제목을 문단 text→다음 문단 heading으로 재귀속 · 목차(TOC) 화이트리스트(`extract_toc_headings`) · 종결부호 가드 · K-GAAP 접두어 폴백(`split_sections_kgaap`의 실N·결N·사례N·소N) · `<표>`/`附件` chrome 일관 제거 · 구역 끝 dangling 헤딩을 마지막 레코드 heading에 보존.
+- **남은 긴 헤딩 꼬리(무손실):** 목차 미등재 17~24자 절 제목 일부가 문단에 남을 수 있음(내용 손실 아님). 폰트로도 구분 불가 확인. 필요시만 추가 정밀화.
+- 계획서: `docs/superpowers/plans/2026-07-08-corpus-chunker-answer-quality.md`.
 
-**남은 것(선택):** US GAAP 정식 ASC 피드(라이선스 확보 시 원격 연결) · 검색 품질 미세조정(표 뒤섞임 #N siblings) · 실제 Codex 플러그인 로드 테스트. (아래 Pending 섹션은 완료된 이력.)
+## ▶ 다음 작업 (사용자 지시: 1 → 2 순서로 진행)
+
+### 1. VAS 출처 QĐ 재라벨 (메타만, 텍스트 불변)
+- **확정 사실:** VAS 저장 텍스트 = 공식 VBPL 법령 원문 verbatim(kreston `/vbpl/`는 정확한 미러). kreston 페이지가 "toàn văn pháp luật chính thức" 명시. VAS 01 = QĐ 165/2002/QĐ-BTC, 발행 Bộ Tài chính. **재수집 불필요, 출처 표기만 공식 QĐ로.**
+- **할 일:** `sources.py`의 VAS 각 표준 `url`(현 `docs.kreston.vn/...`)을 발행 결정문(QĐ 149/2001·165/2002·234/2003·12/2005·100/2005) + Bộ Tài chính로 재라벨. **QĐ별 표준 매핑은 각 kreston 페이지의 자기명시 메타를 WebFetch로 확인해 정확히**(추측 금지). 그 후 `run_ingest --gaap VAS --no-vectors` 재적재 + 벡터 재빌드.
+- 주의: `run_ingest`는 `std.get("url", src.get("url",""))` 폴백 지원(K-IFRS서 추가). VAS도 GAAP-level url 또는 per-std url 가능.
+
+### 2. 답변 고도화 스킬 (Phase 9 — `skills/gaap-standards-qa/SKILL.md`)
+- **설계(계획서 Phase 9):** 계층형 답변 = [원문 verbatim+출처] + [해석(검색근거·라벨)] + [실무(적용지침 tier 검색)] + [GAAP 비교(각 GAAP 실제 검색·인용, 미검색은 명시)] + [유의]. **원문 층 불변, 해석은 검색결과에만 근거, 미검색은 "근거 없음".**
+- 다중검색 전략 + 상호작용(단순조회=원문+간단해석+심화옵션 제안 / 분석요청=전체 계층 / 모호=의도 1개 질문). 선택: MCP `compare_across_gaap` 도구.
+- 검증: 프롬프트 배터리(단순 원문조회~복잡 분석~근거없음).
+
+**커밋 규칙:** `git add -A -- .` 03-ax-wars-pwc 경로한정(형제 프로젝트 오염 금지). 재적재는 `run_ingest --gaap <G> --no-vectors` 후 마지막에 벡터 통합 재빌드(`build_vectors(load_corpus('corpus'),'corpus/vectors')`).
+
+**Codex 라이브 검증(2026-07-08 완료):** MCP 등록·서버·검색 모두 정상 확인. `codex mcp list` enabled, Codex가 tool_search로 도구 발견·라우팅, 동일 env 단독 stdio 왕복은 K-IFRS 1116.22 원문 정확 반환. **첫 호출 콜드스타트(~8s)는 서버 시작 시 임베딩 모델 백그라운드 프리워밍으로 제거**(`__main__.py`+`vectors.py`, 7.8s→1.55s, 커밋 `db84874`, 테스트 119 통과). **단, `codex exec`(비대화형)는 approval=never 강제라 MCP 승인프롬프트가 즉시 취소**됨("user cancelled", duration 0) → MCP 데모는 **대화형 `codex` TUI**로. 상세: 메모리 [[codex-exec-cannot-invoke-mcp]].
 
 ## Git 체크포인트 (모노레포, 03-ax-wars-pwc 경로한정 커밋)
 - `74f905d` READMEs → 3-GAAP + zip 15.5MB (최신)
