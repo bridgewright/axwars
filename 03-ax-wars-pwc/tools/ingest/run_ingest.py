@@ -270,6 +270,8 @@ def main():
     # so behavior for every gaap other than VAS is unchanged.
     if a.gaap == "VAS":
         recs, _report = ingest_vas(a.download_dir)
+    elif a.gaap == "CAS":
+        recs, _report = ingest_cas(a.download_dir)   # CAS는 per-file standard_no/para_style 필요
     else:
         recs = ingest_gaap(a.gaap, a.download_dir)
     if a.no_vectors:

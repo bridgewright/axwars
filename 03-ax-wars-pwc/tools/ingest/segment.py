@@ -827,6 +827,12 @@ _CAS_MEMO_RE = re.compile(
 # boilerplate there at all) -- a no-op for those.
 _CAS_FOOTER_RE = re.compile(r"地址：\s*北京市西城区月坛南街")
 
+# casc.org.cn '附件：'(첨부 표제)/'附件下载:'(다운로드 링크) chrome — 규정 본문이
+# 아니라 사이트 UI. 반각/전각 콜론 혼용을 모두 포함한 '단독 줄'만 제거(인라인
+# '附件：xxx'는 건드리지 않음). baseline과 records 양쪽에서 일관 제거되어(둘 다
+# strip_frontmatter_cas를 거침) tiny 해석 문서의 coverage 오차/과잉 제외를 없앤다.
+_CAS_ATTACHMENT_CHROME_RE = re.compile(r"(?m)^[ \t]*附件(?:下载)?[：:]?[ \t]*$\n?")
+
 
 def strip_frontmatter_cas(text):
     """CAS counterpart to strip_frontmatter()/strip_frontmatter_kgaap(): strips
@@ -873,6 +879,8 @@ def strip_frontmatter_cas(text):
     if footer:
         kept = kept[:footer.start()]
         info["copyright_removed"] = True
+
+    kept = _CAS_ATTACHMENT_CHROME_RE.sub("", kept)   # 附件：/附件下载: chrome 제거
 
     info["chars_dropped"] = len(text) - len(kept)
     info["dropped_text"] = text[:cut]
