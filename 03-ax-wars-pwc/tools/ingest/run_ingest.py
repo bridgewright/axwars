@@ -57,7 +57,7 @@ def ingest_gaap(gaap, download_dir, skip_nos=()):
         # way K-IFRS's own page does.
         as_of = std.get("as_of", src.get("as_of", ""))
         recs = chunk_pages(pages, gaap, std["no"], std["title"], src["lang"],
-                           std.get("url", ""), as_of, tier=std.get("tier_hint", "본문"))
+                           std.get("url", src.get("url", "")), as_of, tier=std.get("tier_hint", "본문"))
         # Coverage is measured over the RETAINED region (본문+적용지침) only:
         # 결론도출근거/적용사례/frontmatter are intentionally dropped (corpus
         # depth = body + application guidance), so checking against the FULL

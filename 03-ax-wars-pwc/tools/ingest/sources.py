@@ -35,6 +35,13 @@ KASB_DOWNLOAD_URL = "https://www.kasb.or.kr/commonFile/fileDownload.do"
 SOURCES = {
     "K-IFRS": {
         "lang": "ko", "format": "pdf", "base_url": "https://www.kasb.or.kr",
+        # 출처/기준일(2026-07-08 메타 정정): KASB는 기준서·문단 단위 GET 딥링크가
+        # 없어(문서는 POST fileDownload.do), 공식 '시행중' 목록 페이지를 출처로 둔다.
+        # as_of는 그 페이지가 명시하는 시행중 vintage(2026-01-01) — 이전 빌드의
+        # 2025-01-01 잔재를 정정. GAAP-level 기본값(개별 std가 없을 때 run_ingest가
+        # src.get으로 폴백).
+        "as_of": "2026-01-01",
+        "url": "https://www.kasb.or.kr/front/board/ingAccountingList.do",
         "standards": [
             # -- 기준서 (1xxx), ascending --
             {"no": "1001", "title": "재무제표 표시", "file_no": "-49992026",
