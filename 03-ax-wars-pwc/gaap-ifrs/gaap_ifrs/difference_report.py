@@ -25,12 +25,23 @@ def _net(entries):
     return a, l, q, ni
 
 
-def _basis_block(basis, indent=""):
+def _basis_block(basis, corpus=None, indent=""):
     L = []
-    if basis.get("ifrs_ref"):
-        L.append(f"{indent}- **IFRS 근거**: {basis['ifrs_ref']} — {basis.get('ifrs_requires', '')}")
+    ref = basis.get("ifrs_ref")
+    if ref:
+        from .basis_grounding import ground_ref
+        found, missing = ground_ref(ref, corpus)
+        if found:
+            L.append(f"{indent}- **IFRS 근거 (코퍼스 원문)**:")
+            for f in found:
+                L.append(f'{indent}    - [{f["label"]}] "{f["text"]}"')
+            if missing:
+                L.append(f"{indent}    - (일부 문단 미확인: {', '.join(missing)} — 코퍼스 미적재)")
+        else:
+            L.append(f"{indent}- **IFRS 근거 (큐레이션 요약 — 코퍼스 원문 미확인)**: "
+                     f"{ref} — {basis.get('ifrs_requires', '')}")
     if basis.get("prev_gaap"):
-        L.append(f"{indent}- **이전 GAAP**: {basis['prev_gaap']}")
+        L.append(f"{indent}- **이전 GAAP (큐레이션 요약)**: {basis['prev_gaap']}")
     if basis.get("difference"):
         L.append(f"{indent}- **핵심 차이**: {basis['difference']}")
     if basis.get("reasoning"):
@@ -38,7 +49,7 @@ def _basis_block(basis, indent=""):
     return L
 
 
-def build_markdown(result):
+def build_markdown(result, corpus=None):
     src = result.trial_balance.source_gaap
     unit = result.trial_balance.currency or "통화단위"
     m_ok = sum(1 for m in result.mapped if not m.flagged)
@@ -68,7 +79,7 @@ def build_markdown(result):
         L.append("### 1-A. 주요 계정 상세 근거 (조항 인용)\n")
         for ml in detailed:
             L.append(f"#### {ml.source.name_src} → {ml.ifrs_account} ({ml.standard})")
-            L.extend(_basis_block(ml.basis))
+            L.extend(_basis_block(ml.basis, corpus))
             L.append("")
 
     # ---- Layer 2 ----
@@ -78,7 +89,7 @@ def build_markdown(result):
     for i, a in enumerate(result.adjustments, 1):
         status = "⚠️ 판단필요" if a.flagged else "✅ 계산됨"
         L.append(f"### 2.{i} {a.title} ({a.standard}) — {status}\n")
-        L.extend(_basis_block(a.basis))
+        L.extend(_basis_block(a.basis, corpus))
         if a.flagged:
             L.append(f"- **판단필요**: {a.note}")
         else:
@@ -90,7 +101,7 @@ def build_markdown(result):
             na, nl, nq, ni = _net(a.entries)
             L.append(f"    - **→ 순효과**: 자산총계 {na:+,.0f} · 부채총계 {nl:+,.0f} · "
                      f"자본총계 {nq:+,.0f} · 당기순이익 {ni:+,.0f} ({unit})")
-        L.append("- ⚠️ *조항 인용은 확립된 기준서 기준이나, 최종 제출 시 공식 기준서 원문과 대조 필요.*\n")
+        L.append("- ⚠️ *조항 인용은 코퍼스 원문 기준(‘큐레이션 요약’ 표시 항목은 코퍼스 미적재분이라 공식 원문 대조 필요).*\n")
 
     # ---- Impact ----
     L.append(f"## 3. 재무 영향 요약 — 단위: {unit}\n")

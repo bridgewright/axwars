@@ -54,3 +54,22 @@ def test_ground_ref_no_corpus():
 
 def test_load_corpus_missing_dir_returns_none():
     assert load_corpus_for_grounding("/nonexistent/path/xyz-does-not-exist") is None
+
+
+# ---- Task 3: renderer ----
+from gaap_ifrs.difference_report import _basis_block
+
+
+def test_basis_block_grounded():
+    recs = [SimpleNamespace(gaap="K-IFRS", standard_no="1109", paragraph_no="4.1.2",
+                            text="4.1.2 상각후원가로 측정한다.")]
+    basis = {"ifrs_ref": "K-IFRS 제1109호 문단 4.1.2", "ifrs_requires": "요약문"}
+    out = "\n".join(_basis_block(basis, corpus=recs))
+    assert "코퍼스 원문" in out and "상각후원가로 측정한다." in out
+    assert "요약문" not in out
+
+
+def test_basis_block_fallback_when_no_corpus():
+    basis = {"ifrs_ref": "K-IFRS 제1109호 문단 4.1.2", "ifrs_requires": "요약문"}
+    out = "\n".join(_basis_block(basis, corpus=None))
+    assert "큐레이션 요약 — 코퍼스 원문 미확인" in out and "요약문" in out
