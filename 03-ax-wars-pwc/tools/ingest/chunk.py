@@ -332,9 +332,14 @@ def strip_page_footers(text):
 
 
 def _is_heading_line(s, lang="ko"):
-    """절/장 제목류: 짧고, 문장 종결부호로 안 끝나고, 리스트/번호/표가 아님."""
+    """절/장 제목류: 짧고, 문장 종결부호로 안 끝나고, 리스트/번호/표가 아님.
+    길이 상한 16자: 실제 절 제목은 대개 이보다 짧고(측정·공시·적용범위·재무제표
+    표시·사용권자산의 최초 측정=11), 이를 넘는 줄은 마침표 없이 줄바꿈된 '내용'
+    파편일 확률이 높다(예: '자가 이해하는 데 유용한 사항의 공시'=18) → 내용으로
+    보존해 손실을 막는다. 16~24자 진짜 헤딩이 문단에 남을 수 있으나(무손실 우선),
+    이후 TOC 기반 탐지로 정밀화 가능."""
     s = s.strip()
-    if not s or len(s) > 24:
+    if not s or len(s) > 16:
         return False
     if s[-1] in _SENT_END.get(lang, _SENT_END["en"]):
         return False
@@ -362,8 +367,12 @@ def _is_content_line(s, lang="ko"):
 def _split_piece(chunk_text, lang):
     """한 문단 span을 (body_text 또는 None, 후행/단독 헤딩줄 list)로 분해.
     - 첫 줄(마커) 이후의 단독 페이지번호 줄 제거.
-    - 마지막 '내용줄' 뒤의 헤딩류는 떼어 trailing으로(다음 문단 heading 후보).
-      내용줄은 항상 body에 포함되므로 마커 줄이 헤딩처럼 보여도 보존된다.
+    - 끝에서부터 heading-like(+빈줄)인 최대 suffix가 후행 헤딩 후보.
+    - **내용 손실 방지 가드(정공법)**: 본문 마지막 줄이 문장 종결부호로 끝날 때만
+      suffix를 헤딩으로 확정한다. 끝나지 않으면(줄바꿈 continuation일 수 있음 —
+      마침표 없이 줄이 이어진 실제 내용) suffix를 본문으로 되돌려 한 글자도 잃지
+      않는다. (그 대가로 그런 경우 진짜 헤딩이 문단에 붙어 남을 수 있으나, 손실보다
+      낫다. 이후 TOC 기반 탐지로 정밀화 가능.)
     - 내용줄이 하나도 없으면(전부 헤딩/번호) body_text=None(레코드 미생성)."""
     lines = chunk_text.split("\n")
     if lines:

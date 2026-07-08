@@ -369,14 +369,12 @@ def assert_no_page_footer(records):
 
 
 def assert_no_trailing_heading(records):
-    """HARD 게이트: 레코드 text가 절/장 제목류 줄로 끝나면 실패(후행 헤딩이 문단
-    본문에 흡수된 상태). 단일 줄 레코드는 대상 아님."""
-    from .chunk import _is_heading_line
-    bad = []
-    for r in records:
-        ls = [l for l in r.text.split("\n") if l.strip()]
-        if len(ls) >= 2 and _is_heading_line(ls[-1], r.lang):
-            bad.append(r.id)
+    """HARD 게이트: 레코드 text에서 (종결부호 가드까지 적용한) _split_piece가
+    여전히 후행 헤딩을 뗄 수 있으면 실패 — 즉 문단 본문에 흡수된 절/장 제목이
+    남아 있는 상태. 스트리퍼와 동일 로직이라 정상 청커 출력엔 걸리지 않고,
+    청커를 거치지 않은/드리프트된 레코드만 잡는다(회귀 방지)."""
+    from .chunk import _split_piece
+    bad = [r.id for r in records if _split_piece(r.text, r.lang)[1]]
     if bad:
         raise FidelityError(f"{len(bad)} record(s) ending with a heading line: {bad[:8]}")
     return bad
