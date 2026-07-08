@@ -276,12 +276,13 @@ def chunk_pages(pages, gaap, standard_no, standard_title, lang, source_url, as_o
     body_tier = "본문" if has_structure else tier
     body_pattern = para_pattern if para_pattern is not None else default_body_pattern
 
+    toc = extract_toc_headings(full)          # 문서 목차의 절 제목 whitelist(손실불가)
     region_chunker = _chunk_region_vas if gaap == "VAS" else _chunk_region
     recs = []
     recs += region_chunker(sections["본문"], body_pattern, slug, gaap, standard_no,
-                           standard_title, lang, body_tier, source_url, as_of)
+                           standard_title, lang, body_tier, source_url, as_of, toc)
     recs += region_chunker(sections["적용지침"], guidance_pattern, slug, gaap, standard_no,
-                           standard_title, lang, "적용지침", source_url, as_of)
+                           standard_title, lang, "적용지침", source_url, as_of, toc)
 
     recs = flag_oversized_chunks(recs)
 
@@ -316,6 +317,36 @@ _SENT_END = {
 # 마커라 항상 조각의 첫 줄(마커 줄)로 보존되므로 별도 보호 불필요.
 _LIST_HEAD_RE = re.compile(r"^\s*([(（\[]|[⑴-⒇]|[①-⑳]|\d{1,3}[.)]\s|[가-힣][.)]\s|"
                            r"[A-Za-z][.)]\s|[•·・◦▪‣∙*\-–—])")
+
+
+_TOC_START_RE = re.compile(r"목\s{0,3}차")
+_TOC_END_RE = re.compile(r"문\s{0,2}단\s{0,2}번\s{0,2}호")     # '문단번호' 컬럼 라벨
+_TOC_TITLE_RE = re.compile(r"제\s*\d{3,4}\s*호|기업회계기준서|해석서|개념체계")
+_TOC_RANGE_RE = re.compile(r"^[\d한][\d~\-.A-Z]*$")            # 문단번호 범위줄('2~6' 등)
+
+
+def _canon_head(s):
+    return re.sub(r"\s+", "", s.strip())
+
+
+def extract_toc_headings(raw):
+    """문서 목차(목차~문단번호 사이)에 선언된 절 제목을 canonical(공백제거) 집합으로
+    반환. 이 whitelist에 정확히 일치하는 본문 줄은 길이와 무관하게 헤딩으로 확정한다
+    — **알려진 제목만 제거하므로 내용 손실이 원천 불가능**. 목차 형식이 다른 GAAP
+    (K-GAAP/CAS/VAS)은 매칭이 없어 빈 집합(무영향)."""
+    heads = set()
+    for m in _TOC_START_RE.finditer(raw):
+        e = _TOC_END_RE.search(raw, m.end(), m.end() + 4000)
+        if not e:
+            continue          # '문단번호' 구분자가 없으면 목차 경계 불확실 → 추출 안 함(안전)
+        region = raw[m.end():e.start()]
+        for ln in region.split("\n"):
+            s = re.sub(r"[.·]{2,}.*$", "", ln).strip()      # 페이지 점선 제거
+            if not s or _TOC_TITLE_RE.search(s) or _TOC_RANGE_RE.match(s):
+                continue
+            if 1 < len(s) <= 40:                            # 절 제목 길이 범위
+                heads.add(_canon_head(s))
+    return frozenset(heads)
 
 
 def strip_page_footers(text):
@@ -364,8 +395,10 @@ def _is_content_line(s, lang="ko"):
     return True
 
 
-def _split_piece(chunk_text, lang):
+def _split_piece(chunk_text, lang, toc=frozenset()):
     """한 문단 span을 (body_text 또는 None, 후행/단독 헤딩줄 list)로 분해.
+    `toc`: 문서 목차에서 추출한 절 제목 whitelist(canonical). 여기 일치하는 줄은
+    길이 무관 헤딩으로 확정(손실 불가). 없으면 ≤16 휴리스틱만 사용.
     - 첫 줄(마커) 이후의 단독 페이지번호 줄 제거.
     - 끝에서부터 heading-like(+빈줄)인 최대 suffix가 후행 헤딩 후보.
     - **내용 손실 방지 가드(정공법)**: 본문 마지막 줄이 문장 종결부호로 끝날 때만
@@ -377,28 +410,35 @@ def _split_piece(chunk_text, lang):
     lines = chunk_text.split("\n")
     if lines:
         lines = [lines[0]] + [l for l in lines[1:] if not _BARE_PAGENUM_RE.match(l.strip())]
+
+    def _is_toc(l):
+        return bool(toc) and l.strip() and _canon_head(l) in toc
+
+    def _is_head(l):
+        return _is_heading_line(l, lang) or _is_toc(l)   # ≤16 휴리스틱 OR 목차 일치
+
     last_content = -1
     for i, l in enumerate(lines):
-        if _is_content_line(l, lang):
+        # 목차에 있는 긴 절 제목은 내용으로 세지 않는다(그래야 후행 suffix로 잡혀 제거됨)
+        if _is_content_line(l, lang) and not _is_toc(l):
             last_content = i
     if last_content < 0:
-        heads = [l.strip() for l in lines if l.strip() and _is_heading_line(l, lang)]
+        heads = [l.strip() for l in lines if l.strip() and _is_head(l)]
         return None, heads
     body = lines[:last_content + 1]
-    trailing = [l.strip() for l in lines[last_content + 1:]
-                if l.strip() and _is_heading_line(l, lang)]
+    trailing = [l.strip() for l in lines[last_content + 1:] if l.strip() and _is_head(l)]
     return "\n".join(body).strip(), trailing
 
 
 def _finalize_pieces(raw_pieces, slug, gaap, standard_no, standard_title, lang, tier,
-                     source_url, as_of):
+                     source_url, as_of, toc=frozenset()):
     """raw_pieces[(para_no, span_text)] → Record 리스트. 각 조각을 _split_piece로
     정리하고, 떼어낸 후행 헤딩은 '다음 레코드의 heading'으로 이월한다."""
     recs = []
     seen = {}
     pending_heading = ""
     for para_no, chunk_text in raw_pieces:
-        body_text, trailing = _split_piece(chunk_text, lang)
+        body_text, trailing = _split_piece(chunk_text, lang, toc)
         if body_text is None:
             if trailing:
                 pending_heading = (pending_heading + " " + " ".join(trailing)).strip()
@@ -414,7 +454,7 @@ def _finalize_pieces(raw_pieces, slug, gaap, standard_no, standard_title, lang, 
 
 
 def _chunk_region(text, pattern, slug, gaap, standard_no, standard_title, lang, tier,
-                   source_url, as_of):
+                   source_url, as_of, toc=frozenset()):
     if not text.strip():
         return []
     text = normalize_missing_space(text)
@@ -434,7 +474,7 @@ def _chunk_region(text, pattern, slug, gaap, standard_no, standard_title, lang, 
             end = marks[i + 1].start() if i + 1 < len(marks) else len(text)
             raw_pieces.append((m.group(1), text[m.start():end].strip()))
     return _finalize_pieces(raw_pieces, slug, gaap, standard_no, standard_title,
-                            lang, tier, source_url, as_of)
+                            lang, tier, source_url, as_of, toc)
 
 
 def _vas_marks(text, pattern):
@@ -477,7 +517,7 @@ def _vas_marks(text, pattern):
 
 
 def _chunk_region_vas(text, pattern, slug, gaap, standard_no, standard_title, lang, tier,
-                       source_url, as_of):
+                       source_url, as_of, toc=frozenset()):
     """VAS counterpart to `_chunk_region`: identical piece-slicing/Record-
     building shape (marker match's OWN start is where its paragraph's stored
     `text` begins -- i.e. the marker itself, pipes included where the source
