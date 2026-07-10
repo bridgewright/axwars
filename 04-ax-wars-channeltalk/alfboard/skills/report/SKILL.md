@@ -1,6 +1,6 @@
 ---
 name: report
-description: interview 인터뷰가 만든 deployment-discovery.json을 입력으로 받아, ① 배포 계획서(deployment-brief.md, 고객 C레벨용)와 ② 본진 프로덕트팀용 제품 인풋(product-input.md, 고객 페인·니즈 + 제품 개발 시 고려사항)을 에이전트가 직접 집필한다. Use when 사용자가 "discovery로 배포 계획서를 만들어 달라", "제품 인풋 문서 뽑아 달라", "report 산출물 생성"을 요청하거나 interview 인터뷰가 끝난 뒤 산출물이 필요할 때.
+description: interview 인터뷰가 만든 deployment-discovery.json을 입력으로 받아, ① 배포 계획서(deployment-brief.md, 고객 C레벨용)와 ② 본진 프로덕트팀용 제품 인풋(product-input.md, 고객 페인·니즈 + 제품 개발 시 고려사항)을 에이전트가 직접 집필한다. 실제 discovery가 아직 없으면 무브온 예시 산출물을 보여줄지 먼저 묻는다(데모 안내). Use when 사용자가 "discovery로 배포 계획서를 만들어 달라", "제품 인풋 문서 뽑아 달라", "report 산출물 생성"을 요청하거나 interview 인터뷰가 끝난 뒤 산출물이 필요할 때.
 ---
 
 # Report — discovery → 두 문서 (②단계)
@@ -14,9 +14,19 @@ description: interview 인터뷰가 만든 deployment-discovery.json을 입력�
 
 ## 워크플로우
 
-### Step 0 — discovery 로드 + 검증
-1. `deployment-discovery.json` 경로 확인. 우선순위: ⓐ 사용자 지정 → ⓑ interview 산출물 `../interview/output/deployment-discovery.json` → ⓒ (테스트) 샘플 `../interview/assets/sample-discovery.json`.
-2. **검증**: `python3 ../interview/scripts/validate_discovery.py <discovery.json>`. errors면 집필 거부 → interview로 되돌아가 보강.
+### Step 0 — discovery 로드 (없으면 무브온 예시 안내 = 데모)
+1. `deployment-discovery.json` 경로 확인. 우선순위: ⓐ 사용자 지정 → ⓑ interview 산출물 `../interview/output/deployment-discovery.json`.
+2. **실제 discovery(ⓐ/ⓑ)가 없거나, 있어도 슬롯이 비어 두 문서를 제대로 쓸 수 없으면** → 곧바로 집필하지 말고 **AskUserQuestion**으로 묻는다.
+   - 질문: "아직 실제 인터뷰 discovery가 없습니다. 무브온 예시로 이 플러그인이 어떻게 동작하는지 한눈에 보여드릴까요?"
+   - 선택지: [무브온 예시 산출물 보기 (추천)] · [실제 discovery 경로 지정] · [인터뷰부터 진행 = interview]
+3. **[무브온 예시 산출물 보기] = 데모 모드**. 새로 집필하지 말고, 이미 만들어 둔 예시를 안내한다.
+   - 한 줄 파이프라인: 고객 4개 그룹(CS 리더·경영진·상담사·IT)이 ElevenLabs 음성 인터뷰 → transcript 취합(`../../samples/무브온/transcripts/`) → `deployment-discovery.json` → 산출물 2종.
+   - 두 산출물의 경로와 각 핵심 요약 3줄을 보여준다.
+     - 배포 계획서: `../../samples/무브온/deployment-brief.md`
+     - 제품 인풋: `../../samples/무브온/product-input.md`
+   - 원본 데이터: `../../samples/무브온/deployment-discovery.json`. 사용자가 원하면 파일을 Read 해 전체를 렌더한다.
+   - "실제로 만들려면 interview로 인터뷰를 진행하세요"로 마무리. **여기서 종료(집필 단계로 가지 않음).**
+4. 실제 discovery가 있으면 **검증**: `python3 ../interview/scripts/validate_discovery.py <discovery.json>` (errors면 집필 거부 → interview 보강). 통과하면 Step 1로.
 
 ### Step 1 — 배포 계획서 집필 (에이전트가 직접)
 1. **반드시 먼저 읽는다**: [`references/deployment-brief-format.md`](references/deployment-brief-format.md) + [`references/costing-assumptions.md`](references/costing-assumptions.md).
