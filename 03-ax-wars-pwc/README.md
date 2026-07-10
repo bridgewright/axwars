@@ -18,6 +18,7 @@
 | **README_track2.md** | 트랙 2(원문 grounded 검색) 상세 딥다이브 |
 | **skills/gaap-ifrs-converter/SKILL.md** · **skills/gaap-standards-qa/SKILL.md** | 각 스킬의 실행 계약 |
 | **gaap-ifrs/README.md** | 트랙 1 변환 엔진 패키지 상세 |
+| **samples/** | 실행 없이 기능을 이해하도록 만든 **실제 산출물 모음**(트랙 1 변환 보고서 + 트랙 2 챗봇 답변 예시). 배경지식 없이 결과만 봐도 됨 — `samples/README.md`부터 |
 
 ## 설치
 

@@ -26,7 +26,7 @@ import zipfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-OUTPUT_ZIP = Path.home() / "Desktop" / "pwc-v2.zip"
+OUTPUT_ZIP = Path.home() / "Desktop" / "submission.zip"
 
 # Directory names dropped wherever they appear while copying a tree. "logs" is
 # here because gaap-ifrs/ has accidental nested dev-log copies (from the
@@ -79,6 +79,7 @@ def build(staging: Path) -> None:
     copytree(REPO_ROOT / "tools", src / "tools")                           # ingest pipeline
     copytree(REPO_ROOT / "corpus", src / "corpus")                         # kifrs.jsonl.zst + vectors/ + manifest.json
     copytree(REPO_ROOT / "examples", src / "examples")                    # track 1 worked examples
+    copytree(REPO_ROOT / "samples", src / "samples")                      # reviewer-facing sample outputs (실행 없이 이해)
     copytree(REPO_ROOT / "tests", src / "tests")                          # track 2 tests (credibility)
     copytree(REPO_ROOT / "viewer", src / "viewer")                        # fixture for tests/test_viewer.py
 
