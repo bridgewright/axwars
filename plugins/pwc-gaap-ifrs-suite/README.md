@@ -40,13 +40,13 @@
 
 **트랙 1 (변환 엔진)** — 시산표를 받아 표준 형태로 정리하고(`parse`), 계정을 K-IFRS 체계로 다시 나누고(`map`), 대손·리스·유형자산 재평가·개발비·확정급여·금융상품 여섯 가지 측정 차이를 조정한다(`adjust`). 각 조정은 차변과 대변으로 나눠 자산=부채+자본 균형을 코드가 강제한다. 이어 K-IFRS 재무제표, 전환조정 명세서, 손익 및 자본 영향, 계정별 상세 보고서를 순서대로 산출한다(`build → reconcile → impact → report`). 어떤 기준의 어느 조항을 쓸지는 규칙 파일(`gaap-ifrs/gaap_ifrs/data/*.json`)에 정리해 두고, 그 조항의 실제 문장은 코퍼스 원문에서 그대로 가져와 보고서에 붙인다.
 
-**트랙 2 (원문 챗봇)** — 질문이 오면 먼저 로컬 MCP 서버(`search_standards`·`get_paragraph`·`get_context`·`list_standards` 4개 도구)로 원문을 검색하고, 찾은 문단만 출처와 함께 verbatim 인용한다. 답변은 원문 인용을 먼저 두고 뜻풀이, 실무 적용, 다른 나라 기준 비교를 라벨로 나눠 단계적으로 확장한다. 검색은 단어 일치(BM25)와 의미 유사(벡터)를 함께 쓰되 점수 스케일이 달라 순위 기준으로 융합(rank fusion)한다.
+**트랙 2 (원문 챗봇)** — 질문이 오면 먼저 로컬 MCP 서버로 원문을 검색하고, 찾은 문단만 출처와 함께 verbatim 인용한다. 답변은 원문 인용을 먼저 두고 뜻풀이, 실무 적용, 다른 나라 기준 비교를 라벨로 나눠 단계적으로 확장한다. 세부 구조는 아래 [트랙 2 상세](#트랙-2-상세--로컬-mcp-원문-검색)에.
 
 **공통 원칙 — 추측 금지**
 
 - 숫자와 조항 문장은 AI 생성 대상에서 제외한다. 숫자는 사람이 정한 규칙에 따라 코드가 계산하고, 조항은 코퍼스 원문에서만 가져온다.
 - 필요한 자료가 없으면 금액을 지어내지 않고 '판단 필요'로 표시한다. 원문에서 근거를 못 찾으면 '근거 없음'으로 답한다. 코퍼스에 아직 없는 조항은 요약본임을 밝힌다.
-- 검색 기능이 일부만 되는 환경에서도 자동으로 더 단순한 방식으로 전환해 계속 동작한다(하이브리드 → BM25 단독 → 내장 스크립트의 3단 폴백). 어떤 경로로 답했는지 항상 고지한다.
+- 검색 기능이 일부만 되는 환경에서도 자동으로 더 단순한 방식으로 전환해 계속 동작하고, 어떤 경로로 답했는지 항상 고지한다.
 
 ## 설치
 
@@ -74,24 +74,87 @@ gaap-ifrs convert --input tb.xlsx --source-gaap K-GAAP --extra adjustments.json 
 ```
 완성 예제는 `examples/{kgaap,usgaap,vas,cas}/`(입력+출력 동봉). 세부는 `gaap-ifrs/README.md`, `skills/gaap-ifrs-converter/SKILL.md` 참조.
 
-**트랙 2 — 로컬 MCP 서버(stdio):**
-```bash
-python -m gaap_standards_mcp        # .mcp.json에 Codex/Claude Code용으로 등록되어 있음
-```
-MCP 클라이언트 없이 직접 조회(자동 full/degraded/no-mcp 판별):
-```bash
-python -m gaap_standards_mcp.entry corpus "리스 사용권자산 인식"
-```
-세부(코퍼스 빌드, 3단 폴백, 용량 제약)는 `README_track2.md`, `skills/gaap-standards-qa/SKILL.md` 참조.
+**트랙 2 — 원문 검색·QA:** 아래 상세 참조. 요약 — `python -m gaap_standards_mcp`로 로컬 MCP 서버를 띄우면, `gaap-standards-qa` 스킬이 `search_standards`로 원문 문단을 확보한 뒤 verbatim 인용으로 답한다.
 
 **샘플 산출물** — 실행 없이 기능을 이해하려면 `samples/`(트랙 1 변환 보고서 + 트랙 2 챗봇 답변 예시)부터 보면 된다.
 
-## 코퍼스
+## 트랙 2 상세 — 로컬 MCP 원문 검색
 
-`corpus/`에 4개 소스 GAAP **10,922문단** — K-IFRS(63기준서·6,115) · 일반기업회계기준(36장·2,001) · 중국 CAS(95문서·1,626) · 베트남 VAS(26기준서·1,180) — 이 zstd 압축 원문(`kifrs/kgaap/cas/vas.jsonl.zst`)으로 동봉되어 있다. 인용용 원문(`text`)과 검색용 정규화 텍스트(`text_norm`)를 이중 저장해, 인용이 원문과 한 글자도 달라지지 않게 했다. 다국어 임베딩으로 교차언어 검색이 가능하다(중국어 질의로 CAS 원문 검색 실측). 벡터 인덱스는 최초 실행 시 로컬에서 빌드하며, 재빌드는:
+### 아키텍처
+
+```
+[빌드타임]  tools/ingest/  : 원문 다운로드 → 형식별 추출 → 문단정렬 청킹
+                             → 충실도 검증(라운드트립 ≥99.5%) → 임베딩 + faiss PQ
+                             → corpus/ 산출(동봉 아티팩트)
+[산출물]    corpus/        : {kifrs,kgaap,cas,vas}.jsonl.zst
+                             + vectors/{index.faiss,id_map.json} + manifest.json
+[런타임]    gaap_standards_mcp/ : stdio MCP 서버 — BM25 + 벡터(RRF 융합) 하이브리드 검색
+[스킬]      skills/gaap-standards-qa/SKILL.md : grounded QA 계약(원문 verbatim 인용)
+```
+
+- **검색**: BM25(문자 n-gram, 기동 시 구축) + faiss PQ 벡터(`intfloat/multilingual-e5-small`, 교차언어)를 RRF(순위 융합)로 병합한다.
+- **원문 충실도**: 인용·표시는 항상 verbatim `text` 필드. 검색·임베딩만 정규화 텍스트(`text_norm`)를 쓴다. 원문의 임의 요약·해석은 금지.
+- **MCP 도구 4종**: `search_standards`(하이브리드 검색), `get_paragraph`(특정 문단 원문), `get_context`(앞뒤 인접 문단), `list_standards`(적재 커버리지).
+
+### MCP 서버 실행
+
+```bash
+python -m gaap_standards_mcp
+```
+
+코퍼스 위치는 환경변수 `GAAP_CORPUS_DIR`로 지정한다(기본: 패키지 옆 `corpus/`). 클라이언트 등록은 `.mcp.json`에 선언되어 있다:
+
+```json
+{
+  "mcpServers": {
+    "gaap-standards": {
+      "command": "python",
+      "args": ["-m", "gaap_standards_mcp"],
+      "env": {"GAAP_CORPUS_DIR": "corpus"}
+    }
+  }
+}
+```
+
+`gaap-standards-qa` 스킬은 `search_standards`를 먼저 호출해 원문 문단을 확보한 뒤, verbatim 인용 + 출처(`[출처: {gaap} 제{standard_no}호 문단 {paragraph_no} · {source_url}]`)로 답한다. 근거가 없으면 "근거 없음"으로 답하고 지어내지 않는다.
+
+### 폴백 3단계
+
+| 단계 | 조건 | 동작 |
+|---|---|---|
+| **full** | MCP + 벡터 인덱스 + 임베딩 모델 정상 | BM25 + 벡터 하이브리드(RRF) 검색 |
+| **degraded** | 임베딩 모델/벡터 인덱스 불가 | BM25 단독 검색(교차언어 리콜 저하 고지) |
+| **no-mcp** | MCP 서버 자체 불가 | 내장 경량 BM25 검색기 직접 호출 |
+
+no-mcp 경로(스킬이 부르는 진입 스크립트, 어떤 `mode`로 답했는지 함께 반환):
+
+```bash
+python -m gaap_standards_mcp.entry corpus "리스부채 인식"
+```
+
+BM25 단독 검색기 직접 호출:
+
+```bash
+python -m gaap_standards_mcp.fallback corpus "리스부채 인식"
+```
+
+### 코퍼스
+
+`corpus/`에 4개 소스 GAAP **10,922문단** — K-IFRS(63기준서·6,115) · 일반기업회계기준(36장·2,001) · 중국 CAS(95문서·1,626) · 베트남 VAS(26기준서·1,180) — 이 zstd 압축 원문(`kifrs/kgaap/cas/vas.jsonl.zst`)으로 동봉되어 있다. 인용용 원문(`text`)과 검색용 정규화 텍스트(`text_norm`)를 이중 저장해, 인용이 원문과 한 글자도 달라지지 않게 했다. 다국어 임베딩으로 교차언어 검색이 가능하다(중국어 질의로 CAS 원문 검색 실측).
+
+동봉된 `corpus/`가 있으면 빌드는 필요 없다. 재빌드는 GAAP별로:
+
 ```bash
 python -m tools.ingest.run_ingest --gaap K-IFRS --download-dir downloads --corpus-dir corpus
 ```
+
+추출 → 문단정렬 청킹 → 충실도 게이트(라운드트립 커버리지·모지바케) → `corpus/*.jsonl.zst` + `corpus/vectors/` + `corpus/manifest.json` 패킹까지 수행한다.
+
+### 용량
+
+- 패키지 용량 예산 **≤100MB**(압축 기준)에 맞춰 설계했다. 코퍼스는 zstd 압축, 벡터 인덱스는 faiss **PQ 양자화**로 소형화.
+- 임베딩 모델(`intfloat/multilingual-e5-small`)은 저장소에 **넣지 않는다** — 최초 실행 시 캐시로 다운로드하며, 다운로드 불가 환경에서는 자동으로 **degraded**(BM25 단독)로 동작한다.
+- 벡터 인덱스(`corpus/vectors/`)는 로컬 빌드 산출물로 저장소에서 제외되어 있으며, 없으면 degraded로 동작하고 위 재빌드 명령으로 생성할 수 있다.
 
 ## 테스트
 
@@ -121,5 +184,4 @@ cd gaap-ifrs && python -m pytest -q    # 트랙 1: 47 케이스 (파싱·매핑�
 
 - 트랙 1은 K-GAAP·US GAAP·CAS·VAS 4개 소스 GAAP의 계정 매핑·조정 규칙을 지원한다(`gaap-ifrs/gaap_ifrs/data/*.json`).
 - 트랙 2의 원문 검색 코퍼스는 K-IFRS·일반기업회계기준·중국 CAS·베트남 VAS 4개 적재 완료(`corpus/manifest.json`, GAAP별 전용 세그멘터·leak/shadow 게이트 통과). US GAAP 원문만 원격 확장 지점(asc.fasb.org 봇월 차단)으로 남아 있으며, 계정 매핑까지만 지원한다.
-- 임베딩 모델(`intfloat/multilingual-e5-small`)은 용량 문제로 저장소에 포함하지 않는다. 최초 실행 시 캐시로 내려받으며, 실패 시 자동으로 BM25 단독(degraded) 검색으로 동작한다.
 - 두 트랙의 산출물은 모두 **전문가 검토용 초안**이며 감사의견·법적 효력을 갖지 않는다.
