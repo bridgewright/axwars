@@ -16,3 +16,16 @@ __pycache__/
 
 # OS
 .DS_Store
+
+# 워크스페이스 작업 폴더 (공개 레포 제외 — 로컬 보존)
+02-ax-wars-kpsec/
+03-ax-wars-pwc/
+04-ax-wars-channeltalk/
+05-cofathon-application/
+99-testbed/
+.claude/
+CLAUDE.md
+AGENTS.md
+
+# 세션 로그
+logs/
