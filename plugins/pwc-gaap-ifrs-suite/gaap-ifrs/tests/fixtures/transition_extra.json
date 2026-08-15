@@ -1,9 +1,0 @@
-{
-  "aging_schedule": [
-    {"bucket": "정상", "receivable": 4000000, "loss_rate": 0.01},
-    {"bucket": "연체", "receivable": 1000000, "loss_rate": 0.10}
-  ],
-  "revaluation": {"assets": [{"name": "토지", "carrying_amount": 25000000, "fair_value": 33000000}]},
-  "dev_capitalization": {"ineligible_amount": 1200000},
-  "lease_schedule": [{"annual_payment": 5000000, "term_years": 4, "discount_rate": 0.05}]
-}

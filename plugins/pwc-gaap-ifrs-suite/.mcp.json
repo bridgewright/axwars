@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "gaap-standards": {
-      "command": "python",
-      "args": ["-m", "gaap_standards_mcp"],
-      "env": {"GAAP_CORPUS_DIR": "corpus"}
-    }
-  }
-}
